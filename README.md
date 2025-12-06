@@ -351,8 +351,8 @@ The built-in dashboard provides real-time insights:
 - [x] Vector memory with RAG
 - [x] Persistent storage (SQLite with WAL / Sled)
 - [x] Streaming LLM responses
+- [x] Agent-to-agent delegation
 - [ ] WebAssembly compilation
-- [ ] Agent-to-agent delegation
 - [ ] Web dashboard (real-time UI)
 
 ## 🔑 Environment Variables
