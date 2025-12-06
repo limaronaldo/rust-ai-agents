@@ -121,6 +121,7 @@ impl AgentEngine {
                                 &registry_clone,
                                 &backend_clone,
                                 &executor_clone,
+                                &metrics_clone,
                                 message.clone(),
                             ),
                         )
@@ -198,7 +199,7 @@ impl AgentEngine {
 
     /// Process a single message with ReACT loop (Reason -> Act -> Observe)
     #[instrument(
-        skip(state, memory, tool_registry, backend, executor, message),
+        skip(state, memory, tool_registry, backend, executor, metrics, message),
         fields(agent_id = %config.id, max_iterations = config.max_iterations)
     )]
     async fn process_message(
@@ -208,6 +209,7 @@ impl AgentEngine {
         tool_registry: &Arc<ToolRegistry>,
         backend: &Arc<dyn LLMBackend>,
         executor: &ToolExecutor,
+        metrics: &Arc<EngineMetrics>,
         message: Message,
     ) -> Result<Vec<Message>, AgentError> {
         let mut responses = Vec::new();
@@ -312,6 +314,12 @@ impl AgentEngine {
 
                     info!(num_calls = tool_calls.len(), "Executing tool calls");
 
+                    // Track tool call metrics
+                    metrics.total_tool_calls.fetch_add(
+                        tool_calls.len() as u64,
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+
                     // Store tool call in memory
                     let tool_call_msg = Message::new(
                         config.id.clone(),
@@ -360,15 +368,15 @@ impl AgentEngine {
             }
         }
 
-        if iteration >= max_iterations {
-            warn!(iterations = iteration, "Max iterations reached");
-            return Err(AgentError::MaxIterationsExceeded);
-        }
-
-        // Update state to idle
+        // Update state to idle before returning (success or error)
         {
             let mut state_write = state.write().await;
             state_write.status = AgentStatus::Idle;
+        }
+
+        if iteration >= max_iterations {
+            warn!(iterations = iteration, "Max iterations reached");
+            return Err(AgentError::MaxIterationsExceeded);
         }
 
         Ok(responses)

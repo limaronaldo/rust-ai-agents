@@ -29,6 +29,11 @@
 //! ### Web
 //! - `HttpRequestTool` - Make HTTP requests
 //! - `WebSearchTool` - Web search (stub)
+//!
+//! ### SQL (requires `postgres` feature)
+//! - `ExecuteSqlTool` - Execute read-only SQL queries
+//! - `ListTablesTool` - List database tables and columns
+//! - `DescribeTableTool` - Get detailed table schema information
 
 pub use rust_ai_agents_core::tool::*;
 
@@ -39,6 +44,8 @@ pub mod encoding;
 pub mod file;
 pub mod math;
 pub mod registry;
+#[cfg(feature = "postgres")]
+pub mod sql;
 pub mod web;
 
 pub use datetime::*;
@@ -46,6 +53,8 @@ pub use encoding::*;
 pub use file::*;
 pub use math::*;
 pub use registry::*;
+#[cfg(feature = "postgres")]
+pub use sql::*;
 pub use web::*;
 
 /// Create a registry with all built-in tools

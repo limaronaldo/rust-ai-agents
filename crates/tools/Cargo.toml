@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 rust-ai-agents-core = { path = "../core" }
+rust-ai-agents-data = { path = "../data", optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
@@ -22,3 +23,10 @@ sha2 = "0.10"
 hex = "0.4"
 urlencoding = "2.1"
 tracing = { workspace = true }
+
+# Database (optional)
+sqlx = { workspace = true, optional = true }
+
+[features]
+default = []
+postgres = ["sqlx", "rust-ai-agents-data/postgres"]

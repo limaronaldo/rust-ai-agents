@@ -1,7 +1,7 @@
 //! Web-related tools
 
 use async_trait::async_trait;
-use rust_ai_agents_core::{Tool, ToolSchema, ExecutionContext, errors::ToolError};
+use rust_ai_agents_core::{errors::ToolError, ExecutionContext, Tool, ToolSchema};
 use serde_json::json;
 
 /// Web search tool (stub - requires external API)
@@ -16,11 +16,7 @@ impl WebSearchTool {
 #[async_trait]
 impl Tool for WebSearchTool {
     fn schema(&self) -> ToolSchema {
-        ToolSchema::new(
-            "web_search",
-            "Search the web for information"
-        )
-        .with_parameters(json!({
+        ToolSchema::new("web_search", "Search the web for information").with_parameters(json!({
             "type": "object",
             "properties": {
                 "query": {
@@ -42,7 +38,8 @@ impl Tool for WebSearchTool {
         _context: &ExecutionContext,
         arguments: serde_json::Value,
     ) -> Result<serde_json::Value, ToolError> {
-        let query = arguments["query"].as_str()
+        let query = arguments["query"]
+            .as_str()
             .ok_or_else(|| ToolError::InvalidArguments("Missing 'query' field".to_string()))?;
 
         // TODO: Implement actual web search (e.g., using SerpAPI, Google Custom Search)
@@ -72,34 +69,31 @@ impl HttpRequestTool {
 #[async_trait]
 impl Tool for HttpRequestTool {
     fn schema(&self) -> ToolSchema {
-        ToolSchema::new(
-            "http_request",
-            "Make an HTTP request to a URL"
-        )
-        .with_parameters(json!({
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "URL to request"
+        ToolSchema::new("http_request", "Make an HTTP request to a URL")
+            .with_parameters(json!({
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "URL to request"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+                        "default": "GET"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "description": "Request headers"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Request body (for POST/PUT)"
+                    }
                 },
-                "method": {
-                    "type": "string",
-                    "enum": ["GET", "POST", "PUT", "DELETE"],
-                    "default": "GET"
-                },
-                "headers": {
-                    "type": "object",
-                    "description": "Request headers"
-                },
-                "body": {
-                    "type": "string",
-                    "description": "Request body (for POST/PUT)"
-                }
-            },
-            "required": ["url"]
-        }))
-        .with_dangerous(true)
+                "required": ["url"]
+            }))
+            .with_dangerous(true)
     }
 
     async fn execute(
@@ -107,29 +101,55 @@ impl Tool for HttpRequestTool {
         _context: &ExecutionContext,
         arguments: serde_json::Value,
     ) -> Result<serde_json::Value, ToolError> {
-        let url = arguments["url"].as_str()
+        let url = arguments["url"]
+            .as_str()
             .ok_or_else(|| ToolError::InvalidArguments("Missing 'url' field".to_string()))?;
 
-        let method = arguments["method"].as_str().unwrap_or("GET");
+        let method = arguments["method"].as_str().unwrap_or("GET").to_uppercase();
+        let body_content = arguments["body"].as_str().unwrap_or("").to_string();
 
-        // Make the request
+        // Build the request
         let client = reqwest::Client::new();
-        let response = match method {
-            "GET" => client.get(url).send().await,
-            "POST" => {
-                let body = arguments["body"].as_str().unwrap_or("");
-                client.post(url).body(body.to_string()).send().await
+        let mut request_builder = match method.as_str() {
+            "GET" => client.get(url),
+            "POST" => client.post(url).body(body_content),
+            "PUT" => client.put(url).body(body_content),
+            "DELETE" => client.delete(url),
+            "PATCH" => client.patch(url).body(body_content),
+            "HEAD" => client.head(url),
+            _ => {
+                return Err(ToolError::InvalidArguments(format!(
+                    "Unsupported method: {}",
+                    method
+                )))
             }
-            _ => return Err(ToolError::InvalidArguments(format!("Unsupported method: {}", method))),
         };
+
+        // Add custom headers if provided
+        if let Some(headers) = arguments["headers"].as_object() {
+            for (key, value) in headers {
+                if let Some(header_value) = value.as_str() {
+                    request_builder = request_builder.header(key.as_str(), header_value);
+                }
+            }
+        }
+
+        // Execute the request
+        let response = request_builder.send().await;
 
         match response {
             Ok(resp) => {
                 let status = resp.status().as_u16();
+                let response_headers: serde_json::Map<String, serde_json::Value> = resp
+                    .headers()
+                    .iter()
+                    .filter_map(|(k, v)| v.to_str().ok().map(|val| (k.to_string(), json!(val))))
+                    .collect();
                 let body = resp.text().await.unwrap_or_default();
 
                 Ok(json!({
                     "status": status,
+                    "headers": response_headers,
                     "body": body,
                     "success": status >= 200 && status < 300
                 }))

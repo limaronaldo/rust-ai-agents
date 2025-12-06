@@ -26,10 +26,25 @@ impl AgentMemory {
 
         // Check if we need to free space
         {
-            let current_size = self.current_size.write().await;
+            let current_size = self.current_size.read().await;
             if *current_size + message_size > self.config.max_size {
                 drop(current_size); // Release lock before calling cleanup
                 self.cleanup().await?;
+            }
+        }
+
+        // Re-check after cleanup - only add if we have space
+        {
+            let current_size = self.current_size.read().await;
+            if *current_size + message_size > self.config.max_size {
+                // Still not enough space even after cleanup
+                // This can happen if the message itself is larger than max_size
+                // or if we couldn't free enough space
+                return Err(MemoryError::CapacityExceeded {
+                    current: *current_size,
+                    required: message_size,
+                    max: self.config.max_size,
+                });
             }
         }
 

@@ -22,6 +22,14 @@ strsim = "0.11"
 dashmap = "6.0"
 futures = { workspace = true }
 regex = "1.10"
+async-trait = { workspace = true }
+
+# Database (optional feature)
+sqlx = { workspace = true, optional = true }
+
+[features]
+default = []
+postgres = ["sqlx"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

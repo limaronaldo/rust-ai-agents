@@ -75,6 +75,9 @@ uuid = { version = "1.8", features = ["v4", "serde"] }
 # LRU cache
 lru = "0.12"
 
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "json", "time", "uuid", "bigdecimal", "chrono"] }
+
 [profile.release]
 opt-level = 3
 lto = true

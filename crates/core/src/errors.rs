@@ -117,6 +117,13 @@ pub enum MemoryError {
     #[error("Memory limit exceeded: {0}/{1} bytes")]
     LimitExceeded(usize, usize),
 
+    #[error("Capacity exceeded: current={current}, required={required}, max={max}")]
+    CapacityExceeded {
+        current: usize,
+        required: usize,
+        max: usize,
+    },
+
     #[error("Persistence error: {0}")]
     PersistenceError(String),
 

@@ -143,6 +143,12 @@ impl Crew {
             .or_else(|| self.find_best_agent_for_task(&task))
             .ok_or_else(|| CrewError::NoAgentAvailable(task.description.clone()))?;
 
+        // Get agent runtime to access its state and memory
+        let agent_runtime = self
+            .engine
+            .get_agent(agent_id)
+            .ok_or_else(|| CrewError::NoAgentAvailable(agent_id.to_string()))?;
+
         // Create message for agent
         let message = Message::new(
             AgentId::new("crew"),
@@ -155,14 +161,62 @@ impl Crew {
             .send_message(message)
             .map_err(|e| CrewError::AgentError(e))?;
 
-        // Wait for response (simplified - in production, use a proper response channel)
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        // Wait for agent to process with timeout
+        // Use timeout from task context or default to 60 seconds
+        let timeout_secs = task
+            .context
+            .get("timeout_secs")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(60);
+        let timeout_duration = std::time::Duration::from_secs(timeout_secs);
+        let poll_interval = std::time::Duration::from_millis(100);
+        let start = std::time::Instant::now();
 
-        // For now, return success
-        Ok(TaskResult::success(
-            task.id.clone(),
-            serde_json::json!({ "status": "completed" }),
-        ))
+        loop {
+            // Check if we've exceeded timeout
+            if start.elapsed() > timeout_duration {
+                return Ok(TaskResult::failure(
+                    task.id.clone(),
+                    format!("Task timed out after {:?}", timeout_duration),
+                ));
+            }
+
+            // Check agent state
+            let state = agent_runtime.state.read().await;
+            let is_idle = matches!(state.status, AgentStatus::Idle);
+            drop(state);
+
+            if is_idle {
+                // Agent finished processing, check memory for response
+                if let Ok(history) = agent_runtime.memory.get_history().await {
+                    // Find the last response from the agent after our message
+                    for msg in history.iter().rev() {
+                        if msg.from == *agent_id {
+                            if let Content::Text(response_text) = &msg.content {
+                                return Ok(TaskResult::success(
+                                    task.id.clone(),
+                                    serde_json::json!({
+                                        "status": "completed",
+                                        "response": response_text,
+                                        "agent_id": agent_id.to_string(),
+                                        "elapsed_ms": start.elapsed().as_millis()
+                                    }),
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                // Agent is idle but no response found - might have errored
+                return Ok(TaskResult::failure(
+                    task.id.clone(),
+                    "Agent completed but no response found".to_string(),
+                ));
+            }
+
+            // Agent still processing, wait before checking again
+            tokio::time::sleep(poll_interval).await;
+        }
     }
 
     /// Find best agent for a task based on capabilities
