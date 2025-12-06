@@ -148,18 +148,26 @@ impl AgentEngine {
                                 }
                             }
                             Ok(Err(e)) => {
-                                // Processing error
+                                // Processing error - restore state to Idle
                                 error!("Processing error: {}", e);
+                                {
+                                    let mut state_write = state_clone.write().await;
+                                    state_write.status = AgentStatus::Idle;
+                                }
                                 metrics_clone
                                     .messages_failed
                                     .fetch_add(1, Ordering::Relaxed);
                             }
                             Err(_) => {
-                                // Timeout
+                                // Timeout - restore state to Idle
                                 error!(
                                     timeout_secs = config_clone.timeout_secs,
                                     "Agent timeout processing message"
                                 );
+                                {
+                                    let mut state_write = state_clone.write().await;
+                                    state_write.status = AgentStatus::Idle;
+                                }
                                 metrics_clone.timeouts.fetch_add(1, Ordering::Relaxed);
                                 metrics_clone
                                     .messages_failed
