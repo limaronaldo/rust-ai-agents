@@ -30,3 +30,4 @@ sqlx = { workspace = true, optional = true }
 [features]
 default = []
 postgres = ["sqlx", "rust-ai-agents-data/postgres"]
+crossref = ["rust-ai-agents-data"]

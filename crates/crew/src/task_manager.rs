@@ -1,9 +1,9 @@
 //! Task management and dependency resolution
 
-use std::collections::{HashMap, HashSet, VecDeque};
 use futures::future::join_all;
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use rust_ai_agents_core::{Task, TaskResult, errors::CrewError};
+use rust_ai_agents_core::{errors::CrewError, Task, TaskResult};
 
 /// Task manager with dependency resolution
 pub struct TaskManager {
@@ -57,7 +57,9 @@ impl TaskManager {
         let dep_graph = self.build_dependency_graph();
 
         // Find tasks with no dependencies
-        let mut ready_queue: VecDeque<String> = self.tasks.values()
+        let mut ready_queue: VecDeque<String> = self
+            .tasks
+            .values()
             .filter(|task| task.dependencies.is_empty())
             .map(|task| task.id.clone())
             .collect();
@@ -83,7 +85,8 @@ impl TaskManager {
 
             // Execute batch
             let executor_clone = executor.clone();
-            let futures: Vec<_> = batch.iter()
+            let futures: Vec<_> = batch
+                .iter()
                 .map(|task| executor_clone(task.clone()))
                 .collect();
 
@@ -101,10 +104,11 @@ impl TaskManager {
 
                         // Check if any dependent tasks are now ready
                         for (dep_task_id, deps) in &dep_graph {
-                            if deps.iter().all(|d| completed.contains(d)) &&
-                               !completed.contains(dep_task_id) &&
-                               !in_progress.contains(dep_task_id) &&
-                               !ready_queue.contains(dep_task_id) {
+                            if deps.iter().all(|d| completed.contains(d))
+                                && !completed.contains(dep_task_id)
+                                && !in_progress.contains(dep_task_id)
+                                && !ready_queue.contains(dep_task_id)
+                            {
                                 ready_queue.push_back(dep_task_id.clone());
                             }
                         }
@@ -122,7 +126,8 @@ impl TaskManager {
 
     /// Build dependency graph
     fn build_dependency_graph(&self) -> HashMap<String, Vec<String>> {
-        self.tasks.values()
+        self.tasks
+            .values()
             .filter(|task| !task.dependencies.is_empty())
             .map(|task| (task.id.clone(), task.dependencies.clone()))
             .collect()
@@ -169,8 +174,11 @@ mod tests {
     fn test_circular_dependency_detection() {
         let mut manager = TaskManager::new(4);
 
-        let task1 = Task::new("Task 1").with_dependencies(vec!["task2".to_string()]);
-        let task2 = Task::new("Task 2").with_dependencies(vec!["task1".to_string()]);
+        let mut task1 = Task::new("Task 1").with_dependencies(vec!["task2".to_string()]);
+        task1.id = "task1".to_string();
+
+        let mut task2 = Task::new("Task 2").with_dependencies(vec!["task1".to_string()]);
+        task2.id = "task2".to_string();
 
         manager.add_task(task1).unwrap();
         let result = manager.add_task(task2);

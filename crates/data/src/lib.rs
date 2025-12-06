@@ -39,6 +39,7 @@
 
 pub mod cnpj;
 pub mod cpf;
+pub mod crossref;
 pub mod matcher;
 pub mod metrics;
 pub mod name;
@@ -49,6 +50,9 @@ pub mod types;
 
 pub use cnpj::CnpjMatcher;
 pub use cpf::CpfMatcher;
+pub use crossref::{
+    build_cross_reference_narrative, CrossReferenceResult, CrossReferencer, SourceSummary,
+};
 pub use matcher::DataMatcher;
 pub use metrics::{DataMatchingMetrics, MetricsSnapshot};
 pub use name::NameMatcher;

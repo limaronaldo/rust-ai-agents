@@ -113,61 +113,67 @@ impl ExecuteSqlTool {
 
     /// Validate query is safe to execute
     fn validate_query(&self, query: &str) -> Result<(), ToolError> {
-        let query_upper = query.trim().to_uppercase();
+        validate_sql_query(query, &self.config)
+    }
+}
 
-        // Check read-only constraint
-        if self.config.read_only {
-            if !query_upper.starts_with("SELECT") && !query_upper.starts_with("WITH") {
-                return Err(ToolError::InvalidArguments(
-                    "Only SELECT queries are allowed in read-only mode".to_string(),
-                ));
-            }
+/// Standalone query validation function (useful for testing without pool)
+fn validate_sql_query(query: &str, config: &SqlToolConfig) -> Result<(), ToolError> {
+    let query_upper = query.trim().to_uppercase();
 
-            // Block dangerous operations even in SELECT
-            let dangerous = [
-                "INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", "CREATE", "GRANT",
-                "REVOKE",
-            ];
-            for op in dangerous {
-                if query_upper.contains(op) {
-                    return Err(ToolError::InvalidArguments(format!(
-                        "{} operations are not allowed",
-                        op
-                    )));
-                }
-            }
+    // Check read-only constraint
+    if config.read_only {
+        if !query_upper.starts_with("SELECT") && !query_upper.starts_with("WITH") {
+            return Err(ToolError::InvalidArguments(
+                "Only SELECT queries are allowed in read-only mode".to_string(),
+            ));
         }
 
-        // Check blocked tables
-        let query_lower = query.to_lowercase();
-        for blocked in &self.config.blocked_tables {
-            if query_lower.contains(&blocked.to_lowercase()) {
+        // Block dangerous operations even in SELECT
+        let dangerous = [
+            "INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", "CREATE", "GRANT", "REVOKE",
+        ];
+        for op in dangerous {
+            if query_upper.contains(op) {
                 return Err(ToolError::InvalidArguments(format!(
-                    "Access to table pattern '{}' is blocked",
-                    blocked
+                    "{} operations are not allowed",
+                    op
                 )));
             }
         }
-
-        // Check allowed tables if specified
-        if !self.config.allowed_tables.is_empty() {
-            let mut found_allowed = false;
-            for allowed in &self.config.allowed_tables {
-                if query_lower.contains(&allowed.to_lowercase()) {
-                    found_allowed = true;
-                    break;
-                }
-            }
-            if !found_allowed {
-                return Err(ToolError::InvalidArguments(
-                    "Query does not reference any allowed tables".to_string(),
-                ));
-            }
-        }
-
-        Ok(())
     }
 
+    // Check blocked tables
+    let query_lower = query.to_lowercase();
+    for blocked in &config.blocked_tables {
+        if query_lower.contains(&blocked.to_lowercase()) {
+            return Err(ToolError::InvalidArguments(format!(
+                "Access to table pattern '{}' is blocked",
+                blocked
+            )));
+        }
+    }
+
+    // Check allowed tables if specified
+    if !config.allowed_tables.is_empty() {
+        let mut found_allowed = false;
+        for allowed in &config.allowed_tables {
+            if query_lower.contains(&allowed.to_lowercase()) {
+                found_allowed = true;
+                break;
+            }
+        }
+        if !found_allowed {
+            return Err(ToolError::InvalidArguments(
+                "Query does not reference any allowed tables".to_string(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+impl ExecuteSqlTool {
     /// Execute query and return results as JSON
     async fn execute_query(&self, query: &str) -> Result<Value, ToolError> {
         let start = Instant::now();
@@ -663,39 +669,33 @@ mod tests {
 
     #[test]
     fn test_validate_query_select() {
-        let tool = ExecuteSqlTool::new(PgPool::connect_lazy("postgres://localhost/test").unwrap());
+        let config = SqlToolConfig::default();
 
         // Valid queries
-        assert!(tool.validate_query("SELECT * FROM users").is_ok());
-        assert!(tool.validate_query("select id, name from orders").is_ok());
-        assert!(tool
-            .validate_query("WITH cte AS (SELECT 1) SELECT * FROM cte")
-            .is_ok());
+        assert!(validate_sql_query("SELECT * FROM users", &config).is_ok());
+        assert!(validate_sql_query("select id, name from orders", &config).is_ok());
+        assert!(validate_sql_query("WITH cte AS (SELECT 1) SELECT * FROM cte", &config).is_ok());
     }
 
     #[test]
     fn test_validate_query_blocked() {
-        let tool = ExecuteSqlTool::new(PgPool::connect_lazy("postgres://localhost/test").unwrap());
+        let config = SqlToolConfig::default();
 
         // Blocked operations
-        assert!(tool.validate_query("INSERT INTO users VALUES (1)").is_err());
-        assert!(tool.validate_query("UPDATE users SET name = 'x'").is_err());
-        assert!(tool.validate_query("DELETE FROM users").is_err());
-        assert!(tool.validate_query("DROP TABLE users").is_err());
-        assert!(tool.validate_query("TRUNCATE users").is_err());
+        assert!(validate_sql_query("INSERT INTO users VALUES (1)", &config).is_err());
+        assert!(validate_sql_query("UPDATE users SET name = 'x'", &config).is_err());
+        assert!(validate_sql_query("DELETE FROM users", &config).is_err());
+        assert!(validate_sql_query("DROP TABLE users", &config).is_err());
+        assert!(validate_sql_query("TRUNCATE users", &config).is_err());
     }
 
     #[test]
     fn test_validate_query_blocked_tables() {
-        let tool = ExecuteSqlTool::new(PgPool::connect_lazy("postgres://localhost/test").unwrap());
+        let config = SqlToolConfig::default();
 
         // System tables blocked
-        assert!(tool
-            .validate_query("SELECT * FROM pg_catalog.pg_tables")
-            .is_err());
-        assert!(tool
-            .validate_query("SELECT * FROM information_schema.tables")
-            .is_err());
+        assert!(validate_sql_query("SELECT * FROM pg_catalog.pg_tables", &config).is_err());
+        assert!(validate_sql_query("SELECT * FROM information_schema.tables", &config).is_err());
     }
 
     #[test]
@@ -703,15 +703,12 @@ mod tests {
         let config = SqlToolConfig::default()
             .with_allowed_tables(vec!["users".to_string(), "orders".to_string()]);
 
-        let pool = PgPool::connect_lazy("postgres://localhost/test").unwrap();
-        let tool = ExecuteSqlTool::new(pool).with_config(config);
-
         // Allowed tables work
-        assert!(tool.validate_query("SELECT * FROM users").is_ok());
-        assert!(tool.validate_query("SELECT * FROM orders").is_ok());
+        assert!(validate_sql_query("SELECT * FROM users", &config).is_ok());
+        assert!(validate_sql_query("SELECT * FROM orders", &config).is_ok());
 
         // Non-allowed tables blocked
-        assert!(tool.validate_query("SELECT * FROM secrets").is_err());
+        assert!(validate_sql_query("SELECT * FROM secrets", &config).is_err());
     }
 
     #[test]

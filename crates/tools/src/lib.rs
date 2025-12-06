@@ -34,11 +34,16 @@
 //! - `ExecuteSqlTool` - Execute read-only SQL queries
 //! - `ListTablesTool` - List database tables and columns
 //! - `DescribeTableTool` - Get detailed table schema information
+//!
+//! ### Cross-Reference (requires `crossref` feature)
+//! - `CrossReferenceEntityTool` - Cross-reference entities across data sources with PT-BR narratives
 
 pub use rust_ai_agents_core::tool::*;
 
 use std::sync::Arc;
 
+#[cfg(feature = "crossref")]
+pub mod crossref;
 pub mod datetime;
 pub mod encoding;
 pub mod file;
@@ -48,6 +53,8 @@ pub mod registry;
 pub mod sql;
 pub mod web;
 
+#[cfg(feature = "crossref")]
+pub use crossref::*;
 pub use datetime::*;
 pub use encoding::*;
 pub use file::*;

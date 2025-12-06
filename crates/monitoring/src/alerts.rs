@@ -681,7 +681,7 @@ mod tests {
     fn test_rate_limiter() {
         let mut limiter = RateLimiter::new(RateLimitConfig {
             max_alerts: 2,
-            window: Duration::from_secs(60),
+            window: Duration::from_millis(50), // Short window so entries expire
             cooldown: Duration::from_millis(100),
         });
 
@@ -689,7 +689,9 @@ mod tests {
         assert!(limiter.can_send());
         assert!(!limiter.can_send()); // Rate limited
 
+        // Sleep longer than both cooldown (100ms) and window (50ms)
+        // so cooldown expires AND old entries are cleaned up
         std::thread::sleep(Duration::from_millis(150));
-        assert!(limiter.can_send()); // Cooldown expired
+        assert!(limiter.can_send()); // Cooldown expired and window cleared
     }
 }
