@@ -1,12 +1,21 @@
 //! OpenAI provider (GPT-4, GPT-3.5, etc.)
+//!
+//! Full implementation of the OpenAI Chat Completions API with:
+//! - GPT-4, GPT-4 Turbo, GPT-3.5 Turbo support
+//! - Tool/function calling
+//! - Rate limiting and retries
+//! - Streaming support with Server-Sent Events (SSE)
 
 use async_trait::async_trait;
+use futures::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::backend::{InferenceOutput, LLMBackend, ModelInfo, RateLimiter, TokenUsage};
+use crate::backend::{
+    InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
+};
 use rust_ai_agents_core::{errors::LLMError, LLMMessage, MessageRole, ToolCall, ToolSchema};
 
 pub struct OpenAIProvider {
@@ -255,6 +264,159 @@ impl LLMBackend for OpenAIProvider {
             },
         }
     }
+
+    fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    async fn infer_stream(
+        &self,
+        messages: &[LLMMessage],
+        tools: &[ToolSchema],
+        temperature: f32,
+    ) -> Result<StreamResponse, LLMError> {
+        let estimated_tokens = messages.iter().map(|m| m.content.len() / 4).sum::<usize>();
+        self.rate_limiter.wait(estimated_tokens).await;
+
+        let mut body = serde_json::json!({
+            "model": self.model,
+            "messages": self.convert_messages(messages),
+            "temperature": temperature,
+            "stream": true,
+        });
+
+        if !tools.is_empty() {
+            body["tools"] = serde_json::json!(self.convert_tools(tools));
+            body["tool_choice"] = serde_json::json!("auto");
+        }
+
+        debug!(
+            "OpenAI streaming request: model={}, messages={}",
+            self.model,
+            messages.len()
+        );
+
+        let response = self
+            .client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| LLMError::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+
+            return Err(match status.as_u16() {
+                429 => LLMError::RateLimitExceeded,
+                401 => LLMError::AuthenticationFailed(error_text),
+                _ => LLMError::ApiError(format!("Status {}: {}", status, error_text)),
+            });
+        }
+
+        // Parse SSE stream
+        let byte_stream = response.bytes_stream();
+
+        let stream = async_stream::stream! {
+            let mut buffer = String::new();
+            let mut tool_calls: std::collections::HashMap<usize, (String, String, String)> = std::collections::HashMap::new();
+
+            tokio::pin!(byte_stream);
+
+            while let Some(chunk_result) = byte_stream.next().await {
+                let chunk = match chunk_result {
+                    Ok(c) => c,
+                    Err(e) => {
+                        yield Err(LLMError::NetworkError(e.to_string()));
+                        break;
+                    }
+                };
+
+                buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+                // Process complete SSE lines
+                while let Some(line_end) = buffer.find('\n') {
+                    let line = buffer[..line_end].trim().to_string();
+                    buffer = buffer[line_end + 1..].to_string();
+
+                    if line.is_empty() || line.starts_with(':') {
+                        continue;
+                    }
+
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" {
+                            // Emit any pending tool calls
+                            for (_, (id, _, _)) in tool_calls.drain() {
+                                yield Ok(StreamEvent::ToolCallEnd { id });
+                            }
+                            yield Ok(StreamEvent::Done { token_usage: None });
+                            break;
+                        }
+
+                        match serde_json::from_str::<OpenAIStreamResponse>(data) {
+                            Ok(response) => {
+                                if let Some(choice) = response.choices.first() {
+                                    let delta = &choice.delta;
+
+                                    // Text content
+                                    if let Some(ref content) = delta.content {
+                                        yield Ok(StreamEvent::TextDelta(content.clone()));
+                                    }
+
+                                    // Tool calls
+                                    if let Some(ref tool_call_deltas) = delta.tool_calls {
+                                        for tc in tool_call_deltas {
+                                            let index = tc.index;
+
+                                            // New tool call
+                                            if let Some(ref func) = tc.function {
+                                                if let Some(ref name) = func.name {
+                                                    let id = tc.id.clone().unwrap_or_else(|| format!("call_{}", index));
+                                                    tool_calls.insert(index, (id.clone(), name.clone(), String::new()));
+                                                    yield Ok(StreamEvent::ToolCallStart {
+                                                        id,
+                                                        name: name.clone(),
+                                                    });
+                                                }
+
+                                                // Arguments delta
+                                                if let Some(ref args) = func.arguments {
+                                                    if let Some((id, _, ref mut accumulated_args)) = tool_calls.get_mut(&index) {
+                                                        accumulated_args.push_str(args);
+                                                        yield Ok(StreamEvent::ToolCallDelta {
+                                                            id: id.clone(),
+                                                            arguments_delta: args.clone(),
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Check for finish reason
+                                    if let Some(ref finish_reason) = choice.finish_reason {
+                                        if finish_reason == "tool_calls" {
+                                            for (_, (id, _, _)) in tool_calls.drain() {
+                                                yield Ok(StreamEvent::ToolCallEnd { id });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                debug!("Failed to parse OpenAI SSE event: {} - data: {}", e, data);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(Box::pin(stream))
+    }
 }
 
 // OpenAI API types
@@ -302,4 +464,38 @@ struct EmbeddingResponse {
 #[derive(Debug, Deserialize)]
 struct EmbeddingData {
     embedding: Vec<f32>,
+}
+
+// ============================================================================
+// Streaming API Types
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamResponse {
+    choices: Vec<OpenAIStreamChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamChoice {
+    delta: OpenAIStreamDelta,
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamDelta {
+    content: Option<String>,
+    tool_calls: Option<Vec<OpenAIStreamToolCall>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamToolCall {
+    index: usize,
+    id: Option<String>,
+    function: Option<OpenAIStreamFunction>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamFunction {
+    name: Option<String>,
+    arguments: Option<String>,
 }

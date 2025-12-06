@@ -1,8 +1,10 @@
 //! Backend trait for LLM providers
 
 use async_trait::async_trait;
-use rust_ai_agents_core::{LLMMessage, ToolSchema, errors::LLMError};
+use futures::Stream;
+use rust_ai_agents_core::{errors::LLMError, LLMMessage, ToolSchema};
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 
 /// LLM inference output
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +60,31 @@ impl TokenUsage {
     }
 }
 
+/// Streaming event from LLM
+#[derive(Debug, Clone)]
+pub enum StreamEvent {
+    /// Text content delta
+    TextDelta(String),
+
+    /// Tool call started
+    ToolCallStart { id: String, name: String },
+
+    /// Tool call arguments delta (JSON fragment)
+    ToolCallDelta { id: String, arguments_delta: String },
+
+    /// Tool call completed
+    ToolCallEnd { id: String },
+
+    /// Stream completed with final usage stats
+    Done { token_usage: Option<TokenUsage> },
+
+    /// Error occurred during streaming
+    Error(String),
+}
+
+/// Type alias for streaming response
+pub type StreamResponse = Pin<Box<dyn Stream<Item = Result<StreamEvent, LLMError>> + Send>>;
+
 /// LLM backend trait
 #[async_trait]
 pub trait LLMBackend: Send + Sync {
@@ -68,6 +95,51 @@ pub trait LLMBackend: Send + Sync {
         tools: &[ToolSchema],
         temperature: f32,
     ) -> Result<InferenceOutput, LLMError>;
+
+    /// Perform streaming inference with the LLM
+    ///
+    /// Returns a stream of events as the model generates output.
+    /// Use this for real-time display of responses.
+    ///
+    /// Default implementation falls back to non-streaming `infer`.
+    async fn infer_stream(
+        &self,
+        messages: &[LLMMessage],
+        tools: &[ToolSchema],
+        temperature: f32,
+    ) -> Result<StreamResponse, LLMError> {
+        // Default: fall back to non-streaming
+        let output = self.infer(messages, tools, temperature).await?;
+
+        let stream = async_stream::stream! {
+            // Emit text content
+            if !output.content.is_empty() {
+                yield Ok(StreamEvent::TextDelta(output.content));
+            }
+
+            // Emit tool calls
+            if let Some(tool_calls) = output.tool_calls {
+                for call in tool_calls {
+                    yield Ok(StreamEvent::ToolCallStart {
+                        id: call.id.clone(),
+                        name: call.name.clone(),
+                    });
+                    yield Ok(StreamEvent::ToolCallDelta {
+                        id: call.id.clone(),
+                        arguments_delta: serde_json::to_string(&call.arguments).unwrap_or_default(),
+                    });
+                    yield Ok(StreamEvent::ToolCallEnd { id: call.id });
+                }
+            }
+
+            // Done
+            yield Ok(StreamEvent::Done {
+                token_usage: Some(output.token_usage),
+            });
+        };
+
+        Ok(Box::pin(stream))
+    }
 
     /// Generate embeddings for text
     async fn embed(&self, text: &str) -> Result<Vec<f32>, LLMError>;

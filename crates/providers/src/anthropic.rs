@@ -6,15 +6,19 @@
 //! - Vision (image) support
 //! - Extended thinking (for Claude 3.5)
 //! - Rate limiting and retries
+//! - Streaming support with Server-Sent Events (SSE)
 
 use async_trait::async_trait;
+use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
-use crate::backend::{InferenceOutput, LLMBackend, ModelInfo, RateLimiter, TokenUsage};
+use crate::backend::{
+    InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
+};
 use rust_ai_agents_core::{errors::LLMError, LLMMessage, MessageRole, ToolCall, ToolSchema};
 
 /// Anthropic API version
@@ -392,6 +396,184 @@ impl LLMBackend for AnthropicProvider {
             supports_vision: true,
         }
     }
+
+    fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    async fn infer_stream(
+        &self,
+        messages: &[LLMMessage],
+        tools: &[ToolSchema],
+        temperature: f32,
+    ) -> Result<StreamResponse, LLMError> {
+        // Estimate tokens for rate limiting
+        let estimated_tokens = messages.iter().map(|m| m.content.len() / 4).sum::<usize>();
+        self.rate_limiter.wait(estimated_tokens).await;
+
+        let (system_prompt, anthropic_messages) = self.convert_messages(messages);
+
+        let request = AnthropicStreamRequest {
+            model: self.model.as_str().to_string(),
+            max_tokens: self.max_tokens,
+            messages: anthropic_messages,
+            system: system_prompt,
+            temperature: Some(temperature),
+            tools: if tools.is_empty() {
+                None
+            } else {
+                Some(self.convert_tools(tools))
+            },
+            tool_choice: if tools.is_empty() {
+                None
+            } else {
+                Some(ToolChoice::Auto)
+            },
+            stream: true,
+        };
+
+        debug!(
+            "Anthropic streaming request: model={}, messages={}, tools={}",
+            self.model.as_str(),
+            request.messages.len(),
+            tools.len()
+        );
+
+        let response = self
+            .client
+            .post(format!("{}/messages", self.base_url))
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", ANTHROPIC_VERSION)
+            .header("anthropic-beta", ANTHROPIC_BETA)
+            .header("content-type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| LLMError::NetworkError(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+
+            return Err(match status.as_u16() {
+                429 => {
+                    warn!("Anthropic rate limit exceeded");
+                    LLMError::RateLimitExceeded
+                }
+                401 => LLMError::AuthenticationFailed("Invalid API key".to_string()),
+                403 => LLMError::AuthenticationFailed(error_text),
+                400 => LLMError::InvalidResponse(format!("Bad request: {}", error_text)),
+                500..=599 => LLMError::ApiError(format!("Server error: {}", error_text)),
+                _ => LLMError::ApiError(format!("Status {}: {}", status, error_text)),
+            });
+        }
+
+        // Parse SSE stream
+        let byte_stream = response.bytes_stream();
+
+        let stream = async_stream::stream! {
+            let mut buffer = String::new();
+            let mut current_tool_id: Option<String> = None;
+            let mut input_tokens = 0usize;
+            let mut output_tokens = 0usize;
+
+            tokio::pin!(byte_stream);
+
+            while let Some(chunk_result) = byte_stream.next().await {
+                let chunk = match chunk_result {
+                    Ok(c) => c,
+                    Err(e) => {
+                        yield Err(LLMError::NetworkError(e.to_string()));
+                        break;
+                    }
+                };
+
+                buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+                // Process complete SSE lines
+                while let Some(line_end) = buffer.find('\n') {
+                    let line = buffer[..line_end].trim().to_string();
+                    buffer = buffer[line_end + 1..].to_string();
+
+                    if line.is_empty() || line.starts_with(':') {
+                        continue;
+                    }
+
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" {
+                            yield Ok(StreamEvent::Done {
+                                token_usage: Some(TokenUsage::new(input_tokens, output_tokens)),
+                            });
+                            break;
+                        }
+
+                        match serde_json::from_str::<StreamEventData>(data) {
+                            Ok(event) => {
+                                match event.event_type.as_str() {
+                                    "message_start" => {
+                                        if let Some(message) = event.message {
+                                            if let Some(usage) = message.usage {
+                                                input_tokens = usage.input_tokens;
+                                            }
+                                        }
+                                    }
+                                    "content_block_start" => {
+                                        if let Some(content_block) = event.content_block {
+                                            match content_block {
+                                                StreamContentBlock::ToolUse { id, name, .. } => {
+                                                    current_tool_id = Some(id.clone());
+                                                    yield Ok(StreamEvent::ToolCallStart { id, name });
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "content_block_delta" => {
+                                        if let Some(delta) = event.delta {
+                                            match delta {
+                                                StreamDelta::TextDelta { text } => {
+                                                    yield Ok(StreamEvent::TextDelta(text));
+                                                }
+                                                StreamDelta::InputJsonDelta { partial_json } => {
+                                                    if let Some(ref id) = current_tool_id {
+                                                        yield Ok(StreamEvent::ToolCallDelta {
+                                                            id: id.clone(),
+                                                            arguments_delta: partial_json,
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    "content_block_stop" => {
+                                        if let Some(id) = current_tool_id.take() {
+                                            yield Ok(StreamEvent::ToolCallEnd { id });
+                                        }
+                                    }
+                                    "message_delta" => {
+                                        if let Some(usage) = event.usage {
+                                            output_tokens = usage.output_tokens;
+                                        }
+                                    }
+                                    "message_stop" => {
+                                        yield Ok(StreamEvent::Done {
+                                            token_usage: Some(TokenUsage::new(input_tokens, output_tokens)),
+                                        });
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Err(e) => {
+                                debug!("Failed to parse SSE event: {} - data: {}", e, data);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(Box::pin(stream))
+    }
 }
 
 // ============================================================================
@@ -491,6 +673,83 @@ struct AnthropicResponse {
 struct AnthropicUsage {
     input_tokens: usize,
     output_tokens: usize,
+}
+
+// ============================================================================
+// Streaming API Types
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+struct AnthropicStreamRequest {
+    model: String,
+    max_tokens: usize,
+    messages: Vec<AnthropicMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<AnthropicTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<ToolChoice>,
+    stream: bool,
+}
+
+/// SSE event data from Anthropic streaming API
+#[derive(Debug, Deserialize)]
+struct StreamEventData {
+    #[serde(rename = "type")]
+    event_type: String,
+    #[serde(default)]
+    #[allow(dead_code)]
+    index: Option<usize>,
+    #[serde(default)]
+    message: Option<StreamMessage>,
+    #[serde(default)]
+    content_block: Option<StreamContentBlock>,
+    #[serde(default)]
+    delta: Option<StreamDelta>,
+    #[serde(default)]
+    usage: Option<StreamUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamMessage {
+    #[serde(default)]
+    usage: Option<StreamUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamUsage {
+    #[serde(default)]
+    input_tokens: usize,
+    #[serde(default)]
+    output_tokens: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+enum StreamContentBlock {
+    #[serde(rename = "text")]
+    #[allow(dead_code)]
+    Text { text: String },
+    #[serde(rename = "tool_use")]
+    ToolUse {
+        id: String,
+        name: String,
+        #[serde(default)]
+        #[allow(dead_code)]
+        input: serde_json::Value,
+    },
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+enum StreamDelta {
+    #[serde(rename = "text_delta")]
+    TextDelta { text: String },
+    #[serde(rename = "input_json_delta")]
+    InputJsonDelta { partial_json: String },
 }
 
 // ============================================================================

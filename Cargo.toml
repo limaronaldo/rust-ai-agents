@@ -57,8 +57,11 @@ sled = "0.34"
 # Async traits
 async-trait = "0.1"
 
-# Futures
+# Futures & Streaming
 futures = "0.3"
+tokio-stream = "0.1"
+async-stream = "0.3"
+pin-project-lite = "0.2"
 
 # Environment
 dotenvy = "0.15"

@@ -33,7 +33,9 @@ pub mod rate_limit;
 pub mod retry;
 
 pub use anthropic::{AnthropicProvider, ClaudeModel};
-pub use backend::*;
+pub use backend::{
+    InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
+};
 pub use openai::OpenAIProvider;
 pub use openrouter::OpenRouterProvider;
 pub use rate_limit::{GovernorRateLimiter, RateLimitConfig};

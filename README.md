@@ -38,7 +38,7 @@ A production-ready, high-performance multi-agent framework built in pure Rust. D
 
 | Provider | Models | Status |
 |----------|--------|--------|
-| **OpenAI** | ChatGPT 5.1, o1, o3 | ✅ Ready |
+| **OpenAI** | ChatGPT 5.1, o3 | ✅ Ready |
 | **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku | ✅ Ready |
 | **Google** | Gemini 3 Pro, Gemini 3 Flash | via OpenRouter |
 | **DeepSeek** | DeepSeek V3.2, DeepSeek R1 | via OpenRouter |
