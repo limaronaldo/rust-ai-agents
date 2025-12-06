@@ -1,0 +1,24 @@
+[package]
+name = "rust-ai-agents-data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Data matching, CPF validation, and cross-source consolidation for Brazilian data"
+
+[dependencies]
+rust-ai-agents-core = { path = "../core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+lru = { workspace = true }
+parking_lot = "0.12"
+unicode-normalization = "0.1"
+strsim = "0.11"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
