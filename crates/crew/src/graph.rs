@@ -357,15 +357,15 @@ pub struct Graph {
     /// Graph name
     pub name: String,
     /// Nodes in the graph
-    nodes: HashMap<String, GraphNode>,
+    pub nodes: HashMap<String, GraphNode>,
     /// Edges in the graph
-    edges: Vec<GraphEdge>,
+    pub edges: Vec<GraphEdge>,
     /// Entry node ID
-    entry_node: String,
+    pub entry_node: String,
     /// Configuration
-    config: GraphConfig,
+    pub config: GraphConfig,
     /// Checkpoint store
-    checkpoint_store: Option<Arc<dyn CheckpointStore>>,
+    pub checkpoint_store: Option<Arc<dyn CheckpointStore>>,
 }
 
 impl std::fmt::Debug for Graph {
