@@ -350,7 +350,7 @@ The built-in dashboard provides real-time insights:
 - [x] Anthropic Claude provider
 - [x] Vector memory with RAG
 - [x] Persistent storage (SQLite with WAL / Sled)
-- [ ] Streaming LLM responses
+- [x] Streaming LLM responses
 - [ ] WebAssembly compilation
 - [ ] Agent-to-agent delegation
 - [ ] Web dashboard (real-time UI)
