@@ -358,6 +358,7 @@ The built-in dashboard provides real-time insights:
 - [x] Human-in-the-loop (approval gates, breakpoints, input collection)
 - [x] Structured outputs (JSON schema validation, auto-retry)
 - [x] Time travel debugging (replay, fork, state history, breakpoints)
+- [x] Subgraphs / nested workflows (composable, reusable graph components)
 
 ## 🔑 Environment Variables
 
