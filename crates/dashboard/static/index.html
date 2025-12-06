@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust AI Agents - Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --accent-cyan: #06b6d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-card);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header h1 span {
+            color: var(--accent-cyan);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: var(--accent-red);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--bg-card);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card-icon {
+            font-size: 1.25rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-change {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .metric-change.positive { color: var(--accent-green); }
+        .metric-change.negative { color: var(--accent-red); }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.75rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .wide-card {
+            grid-column: 1 / -1;
+        }
+
+        .chart-container {
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            padding-top: 1rem;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+
+        .chart-bar::after {
+            content: attr(data-value);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.625rem;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .chart-bar:hover::after {
+            opacity: 1;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-card);
+        }
+
+        th {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        td {
+            font-size: 0.875rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-running {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--accent-green);
+        }
+
+        .badge-idle {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-secondary);
+        }
+
+        .badge-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+
+        .model-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .model-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .model-name {
+            font-size: 0.875rem;
+            flex: 1;
+        }
+
+        .model-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .cost-display {
+            color: var(--accent-green);
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        .request-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--bg-card);
+            font-size: 0.8rem;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-family: monospace;
+            min-width: 80px;
+        }
+
+        .log-model {
+            color: var(--accent-cyan);
+            min-width: 150px;
+        }
+
+        .log-cost {
+            color: var(--accent-green);
+            min-width: 80px;
+            font-family: monospace;
+        }
+
+        .log-latency {
+            color: var(--accent-yellow);
+            min-width: 60px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🦀 <span>Rust AI Agents</span> Dashboard</h1>
+        <div class="status">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Connected</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Top Stats -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Total Cost</span>
+                    <span class="card-icon">💰</span>
+                </div>
+                <div class="metric-value cost-display" id="total-cost">$0.000000</div>
+                <div class="metric-label">Since session start</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Cache Savings</span>
+                    <span class="card-icon">♻️</span>
+                </div>
+                <div class="metric-value cost-display" id="cache-savings">$0.000000</div>
+                <div class="metric-label" id="cache-rate">0% hit rate</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Total Requests</span>
+                    <span class="card-icon">📊</span>
+                </div>
+                <div class="metric-value" id="total-requests">0</div>
+                <div class="metric-label" id="requests-rate">0 req/min</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Avg Latency</span>
+                    <span class="card-icon">⚡</span>
+                </div>
+                <div class="metric-value" id="avg-latency">0 ms</div>
+                <div class="metric-label">Response time</div>
+            </div>
+        </div>
+
+        <!-- Token Stats -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Input Tokens</span>
+                    <span class="card-icon">📥</span>
+                </div>
+                <div class="metric-value" id="input-tokens">0</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Output Tokens</span>
+                    <span class="card-icon">📤</span>
+                </div>
+                <div class="metric-value" id="output-tokens">0</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Cached Tokens</span>
+                    <span class="card-icon">💾</span>
+                </div>
+                <div class="metric-value" id="cached-tokens">0</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Active Agents</span>
+                    <span class="card-icon">🤖</span>
+                </div>
+                <div class="metric-value" id="active-agents">0</div>
+            </div>
+        </div>
+
+        <!-- Cache Efficiency -->
+        <div class="grid">
+            <div class="card wide-card">
+                <div class="card-header">
+                    <span class="card-title">Cache Efficiency</span>
+                    <span id="cache-percent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cache-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Breakdown & Request Log -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Model Breakdown</span>
+                    <span class="card-icon">🤖</span>
+                </div>
+                <div class="model-breakdown" id="model-breakdown">
+                    <div class="metric-label">No models used yet</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Recent Requests</span>
+                    <span class="card-icon">📋</span>
+                </div>
+                <div class="request-log" id="request-log">
+                    <div class="metric-label">No requests yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Table -->
+        <div class="card wide-card">
+            <div class="card-header">
+                <span class="card-title">Agents</span>
+                <span class="card-icon">🤖</span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Messages</th>
+                            <th>Current Task</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agents-table">
+                        <tr>
+                            <td colspan="6" class="metric-label">No agents registered</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Rust AI Agents Dashboard • Uptime: <span id="uptime">0s</span>
+    </footer>
+
+    <script>
+        let ws = null;
+        let requestLog = [];
+        const MAX_LOG_ENTRIES = 50;
+
+        function formatCost(cost) {
+            if (cost < 0.01) return '$' + cost.toFixed(6);
+            if (cost < 1) return '$' + cost.toFixed(4);
+            return '$' + cost.toFixed(2);
+        }
+
+        function formatNumber(n) {
+            return n.toLocaleString();
+        }
+
+        function formatUptime(seconds) {
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+            return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString();
+        }
+
+        function updateMetrics(data) {
+            const stats = data.cost_stats;
+
+            // Cost metrics
+            document.getElementById('total-cost').textContent = formatCost(stats.total_cost);
+            document.getElementById('cache-savings').textContent = formatCost(stats.cache_savings);
+            document.getElementById('cache-rate').textContent = (stats.cache_hit_rate * 100).toFixed(1) + '% hit rate';
+
+            // Request metrics
+            document.getElementById('total-requests').textContent = formatNumber(stats.total_requests);
+            document.getElementById('requests-rate').textContent = stats.requests_per_minute.toFixed(1) + ' req/min';
+            document.getElementById('avg-latency').textContent = Math.round(stats.avg_latency_ms) + ' ms';
+
+            // Token metrics
+            document.getElementById('input-tokens').textContent = formatNumber(stats.total_input_tokens);
+            document.getElementById('output-tokens').textContent = formatNumber(stats.total_output_tokens);
+            document.getElementById('cached-tokens').textContent = formatNumber(stats.cached_tokens);
+
+            // Cache bar
+            const cachePercent = (stats.cache_hit_rate * 100).toFixed(1);
+            document.getElementById('cache-percent').textContent = cachePercent + '%';
+            document.getElementById('cache-bar').style.width = cachePercent + '%';
+
+            // Agents
+            document.getElementById('active-agents').textContent = data.active_agents;
+
+            // Uptime
+            document.getElementById('uptime').textContent = formatUptime(data.uptime_seconds);
+
+            // Model breakdown
+            updateModelBreakdown(stats.by_model);
+
+            // Agents table
+            updateAgentsTable(data.agents);
+        }
+
+        function updateModelBreakdown(byModel) {
+            const container = document.getElementById('model-breakdown');
+            const models = Object.entries(byModel || {});
+
+            if (models.length === 0) {
+                container.innerHTML = '<div class="metric-label">No models used yet</div>';
+                return;
+            }
+
+            // Sort by cost descending
+            models.sort((a, b) => b[1].total_cost - a[1].total_cost);
+
+            container.innerHTML = models.slice(0, 5).map(([name, stats]) => {
+                const avgLatency = stats.requests > 0 ? stats.total_latency_ms / stats.requests : 0;
+                return `
+                    <div class="model-row">
+                        <span class="model-name">${name.length > 30 ? name.substring(0, 30) + '...' : name}</span>
+                        <div class="model-stats">
+                            <span class="cost-display">${formatCost(stats.total_cost)}</span>
+                            <span>${stats.requests} reqs</span>
+                            <span>${Math.round(avgLatency)}ms</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateAgentsTable(agents) {
+            const tbody = document.getElementById('agents-table');
+
+            if (!agents || agents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="metric-label">No agents registered</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = agents.map(agent => {
+                const badgeClass = agent.status === 'running' ? 'badge-running' :
+                                   agent.status === 'error' ? 'badge-error' : 'badge-idle';
+                return `
+                    <tr>
+                        <td>${agent.name}</td>
+                        <td>${agent.role}</td>
+                        <td><span class="badge ${badgeClass}">${agent.status}</span></td>
+                        <td>${agent.messages_processed}</td>
+                        <td>${agent.current_task || '-'}</td>
+                        <td>${agent.last_activity ? formatTime(agent.last_activity) : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function addRequestLog(data) {
+            requestLog.unshift({
+                time: new Date(),
+                model: data.model,
+                cost: data.cost,
+                tokens: data.tokens,
+                latency: data.latency_ms
+            });
+
+            if (requestLog.length > MAX_LOG_ENTRIES) {
+                requestLog.pop();
+            }
+
+            updateRequestLogDisplay();
+        }
+
+        function updateRequestLogDisplay() {
+            const container = document.getElementById('request-log');
+
+            if (requestLog.length === 0) {
+                container.innerHTML = '<div class="metric-label">No requests yet</div>';
+                return;
+            }
+
+            container.innerHTML = requestLog.map(entry => `
+                <div class="log-entry">
+                    <span class="log-time">${entry.time.toLocaleTimeString()}</span>
+                    <span class="log-model">${entry.model.length > 20 ? entry.model.substring(0, 20) + '...' : entry.model}</span>
+                    <span class="log-cost">${formatCost(entry.cost)}</span>
+                    <span class="log-latency">${Math.round(entry.latency)}ms</span>
+                </div>
+            `).join('');
+        }
+
+        function setConnectionStatus(connected) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            if (connected) {
+                dot.classList.remove('disconnected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.add('disconnected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                setConnectionStatus(true);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                setConnectionStatus(false);
+                // Reconnect after 2 seconds
+                setTimeout(connect, 2000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                setConnectionStatus(false);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+
+                    switch (message.type) {
+                        case 'Metrics':
+                            updateMetrics(message.data);
+                            break;
+                        case 'RequestRecorded':
+                            addRequestLog(message.data);
+                            break;
+                        case 'AgentUpdate':
+                            // Will be reflected in next metrics update
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                }
+            };
+        }
+
+        // Start connection
+        connect();
+    </script>
+</body>
+</html>

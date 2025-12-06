@@ -1,0 +1,39 @@
+[package]
+name = "rust-ai-agents-dashboard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Real-time web dashboard for Rust AI Agents monitoring"
+
+[dependencies]
+# Web framework
+axum = { version = "0.8", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Monitoring types
+rust-ai-agents-monitoring = { path = "../monitoring" }
+
+# Time
+chrono = { workspace = true }
+
+# Tracing
+tracing = { workspace = true }
+
+# UUID for connection IDs
+uuid = { workspace = true }
+
+# Futures for stream handling
+futures = { workspace = true }
+
+# Synchronization
+parking_lot = "0.12"

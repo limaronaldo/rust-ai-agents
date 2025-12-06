@@ -353,7 +353,7 @@ The built-in dashboard provides real-time insights:
 - [x] Streaming LLM responses
 - [x] Agent-to-agent delegation
 - [x] WebAssembly compilation
-- [ ] Web dashboard (real-time UI)
+- [x] Web dashboard (real-time UI)
 
 ## 🔑 Environment Variables
 
@@ -376,6 +376,7 @@ The built-in dashboard provides real-time insights:
 | `rust-ai-agents-monitoring` | Cost tracking, metrics, alerts |
 | `rust-ai-agents-data` | Data matching/normalization pipelines |
 | `rust-ai-agents-wasm` | WebAssembly bindings for browser/Node.js |
+| `rust-ai-agents-dashboard` | Real-time web dashboard with WebSocket |
 
 ## 🤝 Contributing
 

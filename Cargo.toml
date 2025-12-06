@@ -10,6 +10,7 @@ members = [
     "crates/monitoring",
     "crates/data",
     "crates/wasm",
+    "crates/dashboard",
     "examples",
 ]
 
