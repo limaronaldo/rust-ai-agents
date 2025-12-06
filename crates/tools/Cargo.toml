@@ -14,3 +14,4 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+parking_lot = "0.12"

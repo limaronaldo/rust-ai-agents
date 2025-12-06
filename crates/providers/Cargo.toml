@@ -16,3 +16,6 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 parking_lot = "0.12"
+governor = { workspace = true }
+backoff = { workspace = true }
+nonzero_ext = "0.3"

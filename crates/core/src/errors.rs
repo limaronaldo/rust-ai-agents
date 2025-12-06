@@ -45,14 +45,23 @@ pub enum ToolError {
     #[error("Execution failed: {0}")]
     ExecutionFailed(String),
 
+    #[error("Execution error: {0}")]
+    Execution(String),
+
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
 
+    #[error("Timeout: {0}")]
+    Timeout(String),
+
     #[error("Timeout: operation took longer than {0}ms")]
-    Timeout(u64),
+    TimeoutMs(u64),
 
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
+
+    #[error("Circuit breaker open for tool: {0}")]
+    CircuitOpen(String),
 }
 
 /// LLM backend errors
