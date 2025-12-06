@@ -1,0 +1,73 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/providers",
+    "crates/tools",
+    "crates/agents",
+    "crates/crew",
+    "crates/monitoring",
+    "examples/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Ronaldo Lima"]
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+homepage = "https://github.com/limaronaldo/rust-ai-agents"
+documentation = "https://docs.rs/rust-ai-agents"
+readme = "README.md"
+keywords = ["ai", "agents", "llm", "multi-agent", "openrouter"]
+categories = ["api-bindings", "asynchronous", "development-tools"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.42", features = ["full"] }
+tokio-util = "0.7"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Storage
+sled = "0.34"
+
+# Async traits
+async-trait = "0.1"
+
+# Futures
+futures = "0.3"
+
+# Environment
+dotenvy = "0.15"
+
+# Terminal UI
+crossterm = "0.28"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+debug = true

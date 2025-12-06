@@ -1,0 +1,17 @@
+[package]
+name = "rust-ai-agents-crew"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+rust-ai-agents-core = { path = "../core" }
+rust-ai-agents-agents = { path = "../agents" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }

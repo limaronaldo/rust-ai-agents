@@ -1,0 +1,17 @@
+[package]
+name = "rust-ai-agents-monitoring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+rust-ai-agents-core = { path = "../core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+crossterm = { workspace = true }
+parking_lot = "0.12"
