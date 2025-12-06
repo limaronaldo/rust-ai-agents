@@ -19,6 +19,9 @@ lru = { workspace = true }
 parking_lot = "0.12"
 unicode-normalization = "0.1"
 strsim = "0.11"
+dashmap = "6.0"
+futures = { workspace = true }
+regex = "1.10"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
