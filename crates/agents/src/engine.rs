@@ -1,9 +1,16 @@
 //! Agent execution engine with ReACT loop
+//!
+//! Features:
+//! - Tracing instrumentation for observability (Jaeger, Honeycomb compatible)
+//! - Configurable timeout per agent to prevent hangs
+//! - Error injection into context for self-correction
 
 use dashmap::DashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, error, warn};
+use tokio::time::timeout;
+use tracing::{debug, debug_span, error, info, instrument, warn, Instrument};
 
 use rust_ai_agents_core::*;
 use rust_ai_agents_providers::*;
@@ -19,12 +26,15 @@ pub struct AgentEngine {
     metrics: Arc<EngineMetrics>,
 }
 
-/// Engine metrics
+/// Engine metrics with atomic counters for lock-free updates
 #[derive(Default)]
 pub struct EngineMetrics {
-    pub agents_spawned: parking_lot::Mutex<u64>,
-    pub messages_processed: parking_lot::Mutex<u64>,
-    pub total_tool_calls: parking_lot::Mutex<u64>,
+    pub agents_spawned: std::sync::atomic::AtomicU64,
+    pub agents_active: std::sync::atomic::AtomicU64,
+    pub messages_processed: std::sync::atomic::AtomicU64,
+    pub messages_failed: std::sync::atomic::AtomicU64,
+    pub total_tool_calls: std::sync::atomic::AtomicU64,
+    pub timeouts: std::sync::atomic::AtomicU64,
 }
 
 /// Agent runtime state
@@ -47,13 +57,16 @@ impl AgentEngine {
         }
     }
 
-    /// Spawn a new agent
+    /// Spawn a new agent with tracing instrumentation
+    #[instrument(skip(self, tool_registry, backend), fields(agent_id = %config.id, agent_name = %config.name))]
     pub async fn spawn_agent(
         &self,
         config: AgentConfig,
         tool_registry: Arc<ToolRegistry>,
         backend: Arc<dyn LLMBackend>,
     ) -> Result<AgentId, AgentError> {
+        use std::sync::atomic::Ordering;
+
         let (inbox_tx, mut inbox_rx) = mpsc::unbounded_channel::<Message>();
 
         let agent_id = config.id.clone();
@@ -69,48 +82,98 @@ impl AgentEngine {
         let backend_clone = backend.clone();
         let executor_clone = executor.clone();
         let engine_clone = self.clone();
+        let metrics_clone = self.metrics.clone();
 
-        // Spawn processing task
-        let processing_task = tokio::spawn(async move {
-            while let Some(message) = inbox_rx.recv().await {
-                let start = std::time::Instant::now();
+        // Create a span for the agent's processing loop
+        let agent_loop_span = tracing::info_span!(
+            "agent_loop",
+            agent_id = %agent_id,
+            agent_name = %config.name
+        );
 
-                debug!(
-                    "Agent {} processing message from {}",
-                    config_clone.id, message.from
-                );
+        // Spawn processing task with tracing
+        let processing_task = tokio::spawn(
+            async move {
+                while let Some(message) = inbox_rx.recv().await {
+                    // Create a span for each message processing
+                    let msg_span = debug_span!(
+                        "process_message",
+                        from = %message.from,
+                        iteration = tracing::field::Empty
+                    );
 
-                match Self::process_message(
-                    &config_clone,
-                    &state_clone,
-                    &memory_clone,
-                    &registry_clone,
-                    &backend_clone,
-                    &executor_clone,
-                    message,
-                )
-                .await
-                {
-                    Ok(responses) => {
-                        for response in responses {
-                            if let Err(e) = engine_clone.send_message(response) {
-                                error!("Failed to send response: {}", e);
+                    async {
+                        let start = std::time::Instant::now();
+                        let timeout_duration = Duration::from_secs(config_clone.timeout_secs);
+
+                        info!(
+                            timeout_secs = config_clone.timeout_secs,
+                            "Processing message from {}", message.from
+                        );
+
+                        // Wrap processing in a timeout
+                        let process_result = timeout(
+                            timeout_duration,
+                            Self::process_message(
+                                &config_clone,
+                                &state_clone,
+                                &memory_clone,
+                                &registry_clone,
+                                &backend_clone,
+                                &executor_clone,
+                                message.clone(),
+                            ),
+                        )
+                        .await;
+
+                        match process_result {
+                            Ok(Ok(responses)) => {
+                                // Successfully processed
+                                for response in responses {
+                                    if let Err(e) = engine_clone.send_message(response) {
+                                        error!("Failed to route response: {}", e);
+                                    }
+                                }
+                                metrics_clone
+                                    .messages_processed
+                                    .fetch_add(1, Ordering::Relaxed);
+
+                                let latency = start.elapsed();
+                                if latency.as_millis() > 500 {
+                                    warn!(
+                                        latency_ms = latency.as_millis(),
+                                        "Slow processing detected"
+                                    );
+                                }
+                            }
+                            Ok(Err(e)) => {
+                                // Processing error
+                                error!("Processing error: {}", e);
+                                metrics_clone
+                                    .messages_failed
+                                    .fetch_add(1, Ordering::Relaxed);
+                            }
+                            Err(_) => {
+                                // Timeout
+                                error!(
+                                    timeout_secs = config_clone.timeout_secs,
+                                    "Agent timeout processing message"
+                                );
+                                metrics_clone.timeouts.fetch_add(1, Ordering::Relaxed);
+                                metrics_clone
+                                    .messages_failed
+                                    .fetch_add(1, Ordering::Relaxed);
                             }
                         }
-
-                        let latency = start.elapsed();
-                        if latency.as_millis() > 500 {
-                            warn!("Agent {} slow processing: {:?}", config_clone.id, latency);
-                        }
                     }
-                    Err(e) => {
-                        error!("Agent {} processing error: {}", config_clone.id, e);
-                    }
+                    .instrument(msg_span)
+                    .await;
                 }
-            }
 
-            debug!("Agent {} processing task stopped", config_clone.id);
-        });
+                info!("Agent processing task stopped");
+            }
+            .instrument(agent_loop_span),
+        );
 
         let runtime = Arc::new(AgentRuntime {
             config: config.clone(),
@@ -125,17 +188,19 @@ impl AgentEngine {
 
         self.agents.insert(agent_id.clone(), runtime);
 
-        {
-            let mut count = self.metrics.agents_spawned.lock();
-            *count += 1;
-        }
+        self.metrics.agents_spawned.fetch_add(1, Ordering::Relaxed);
+        self.metrics.agents_active.fetch_add(1, Ordering::Relaxed);
 
-        debug!("Agent {} spawned successfully", agent_id);
+        info!("Agent spawned successfully");
 
         Ok(agent_id)
     }
 
-    /// Process a single message with ReACT loop
+    /// Process a single message with ReACT loop (Reason -> Act -> Observe)
+    #[instrument(
+        skip(state, memory, tool_registry, backend, executor, message),
+        fields(agent_id = %config.id, max_iterations = config.max_iterations)
+    )]
     async fn process_message(
         config: &AgentConfig,
         state: &Arc<RwLock<AgentState>>,
@@ -164,16 +229,17 @@ impl AgentEngine {
         while iteration < max_iterations {
             iteration += 1;
 
+            // Create a span for each iteration
+            let iter_span = debug_span!("react_iteration", n = iteration, max = max_iterations);
+            let _iter_guard = iter_span.enter();
+
             {
                 let mut state_write = state.write().await;
                 state_write.iteration = iteration;
                 state_write.status = AgentStatus::Thinking;
             }
 
-            debug!(
-                "Agent {} iteration {}/{}",
-                config.id, iteration, max_iterations
-            );
+            debug!(iteration, max_iterations, "ReACT iteration");
 
             // 1. REASON: Get conversation history and available tools
             let history = memory.get_history().await?;
@@ -231,10 +297,9 @@ impl AgentEngine {
                 .await?;
 
             debug!(
-                "Agent {} LLM response: content_len={}, tool_calls={}",
-                config.id,
-                inference.content.len(),
-                inference.tool_calls.as_ref().map(|c| c.len()).unwrap_or(0)
+                content_len = inference.content.len(),
+                tool_calls = inference.tool_calls.as_ref().map(|c| c.len()).unwrap_or(0),
+                "LLM inference complete"
             );
 
             // 3. ACT: Check if agent wants to use tools
@@ -245,11 +310,7 @@ impl AgentEngine {
                         state_write.status = AgentStatus::ExecutingTool;
                     }
 
-                    debug!(
-                        "Agent {} executing {} tool calls",
-                        config.id,
-                        tool_calls.len()
-                    );
+                    info!(num_calls = tool_calls.len(), "Executing tool calls");
 
                     // Store tool call in memory
                     let tool_call_msg = Message::new(
@@ -300,7 +361,7 @@ impl AgentEngine {
         }
 
         if iteration >= max_iterations {
-            warn!("Agent {} reached max iterations", config.id);
+            warn!(iterations = iteration, "Max iterations reached");
             return Err(AgentError::MaxIterationsExceeded);
         }
 
@@ -314,6 +375,7 @@ impl AgentEngine {
     }
 
     /// Send a message to an agent
+    #[instrument(skip(self), fields(to = %message.to, from = %message.from))]
     pub fn send_message(&self, message: Message) -> Result<(), AgentError> {
         if let Some(agent) = self.agents.get(&message.to) {
             agent
@@ -321,13 +383,10 @@ impl AgentEngine {
                 .send(message)
                 .map_err(|e| AgentError::SendError(e.to_string()))?;
 
-            {
-                let mut count = self.metrics.messages_processed.lock();
-                *count += 1;
-            }
-
+            debug!("Message sent successfully");
             Ok(())
         } else {
+            warn!("Agent not found");
             Err(AgentError::AgentNotFound(message.to))
         }
     }
@@ -343,29 +402,66 @@ impl AgentEngine {
     }
 
     /// Get metrics
-    pub fn metrics(&self) -> (u64, u64) {
-        let spawned = *self.metrics.agents_spawned.lock();
-        let processed = *self.metrics.messages_processed.lock();
-        (spawned, processed)
+    pub fn metrics(&self) -> EngineMetricsSnapshot {
+        use std::sync::atomic::Ordering;
+        EngineMetricsSnapshot {
+            agents_spawned: self.metrics.agents_spawned.load(Ordering::Relaxed),
+            agents_active: self.metrics.agents_active.load(Ordering::Relaxed),
+            messages_processed: self.metrics.messages_processed.load(Ordering::Relaxed),
+            messages_failed: self.metrics.messages_failed.load(Ordering::Relaxed),
+            total_tool_calls: self.metrics.total_tool_calls.load(Ordering::Relaxed),
+            timeouts: self.metrics.timeouts.load(Ordering::Relaxed),
+        }
     }
+}
 
+/// Snapshot of engine metrics
+#[derive(Debug, Clone)]
+pub struct EngineMetricsSnapshot {
+    pub agents_spawned: u64,
+    pub agents_active: u64,
+    pub messages_processed: u64,
+    pub messages_failed: u64,
+    pub total_tool_calls: u64,
+    pub timeouts: u64,
+}
+
+impl EngineMetricsSnapshot {
+    pub fn success_rate(&self) -> f64 {
+        let total = self.messages_processed + self.messages_failed;
+        if total > 0 {
+            self.messages_processed as f64 / total as f64
+        } else {
+            1.0
+        }
+    }
+}
+
+impl AgentEngine {
     /// Stop an agent
+    #[instrument(skip(self), fields(agent_id = %id))]
     pub async fn stop_agent(&self, id: &AgentId) -> Result<(), AgentError> {
+        use std::sync::atomic::Ordering;
+
         if let Some((_, runtime)) = self.agents.remove(id) {
             // Abort the processing task
             if let Some(handle) = runtime.processing_task.lock().take() {
                 handle.abort();
             }
-            debug!("Agent {} stopped", id);
+            self.metrics.agents_active.fetch_sub(1, Ordering::Relaxed);
+            info!("Agent stopped");
             Ok(())
         } else {
+            warn!("Agent not found");
             Err(AgentError::AgentNotFound(id.clone()))
         }
     }
 
     /// Stop all agents
+    #[instrument(skip(self))]
     pub async fn shutdown(&self) {
         let ids: Vec<AgentId> = self.agents.iter().map(|r| r.key().clone()).collect();
+        info!(agent_count = ids.len(), "Shutting down all agents");
         for id in ids {
             let _ = self.stop_agent(&id).await;
         }

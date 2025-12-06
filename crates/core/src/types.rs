@@ -121,6 +121,17 @@ pub enum RetentionPolicy {
     Custom,
 }
 
+// Default value functions for serde
+fn default_max_iterations() -> usize {
+    10
+}
+fn default_timeout_secs() -> u64 {
+    60
+}
+fn default_temperature() -> f32 {
+    0.7
+}
+
 /// Agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -138,9 +149,14 @@ pub struct AgentConfig {
     pub routing_strategy: RoutingStrategy,
     /// System prompt/instructions
     pub system_prompt: Option<String>,
-    /// Maximum iterations for reasoning loops
+    /// Maximum iterations for reasoning loops (prevents infinite loops)
+    #[serde(default = "default_max_iterations")]
     pub max_iterations: usize,
+    /// Timeout in seconds for message processing
+    #[serde(default = "default_timeout_secs")]
+    pub timeout_secs: u64,
     /// Temperature for LLM sampling
+    #[serde(default = "default_temperature")]
     pub temperature: f32,
 }
 
@@ -154,8 +170,9 @@ impl AgentConfig {
             memory_config: MemoryConfig::new(2 * 1024 * 1024), // 2MB default
             routing_strategy: RoutingStrategy::Direct,
             system_prompt: None,
-            max_iterations: 10,
-            temperature: 0.7,
+            max_iterations: default_max_iterations(),
+            timeout_secs: default_timeout_secs(),
+            temperature: default_temperature(),
         }
     }
 
@@ -176,6 +193,11 @@ impl AgentConfig {
 
     pub fn with_max_iterations(mut self, max: usize) -> Self {
         self.max_iterations = max;
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
+        self.timeout_secs = timeout_secs;
         self
     }
 
