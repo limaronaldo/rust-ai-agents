@@ -7,14 +7,17 @@
 //! - **Crew**: Traditional multi-agent coordination with sequential/parallel/hierarchical processes
 //! - **Workflow**: DAG-based workflow system with conditional branching and human-in-the-loop support
 //! - **Orchestra**: Multi-perspective analysis with parallel execution and synthesis
+//! - **Graph**: LangGraph-style graph execution with cycles, conditionals, and checkpointing
 
 pub mod crew;
+pub mod graph;
 pub mod orchestra;
 pub mod process;
 pub mod task_manager;
 pub mod workflow;
 
 pub use crew::*;
+pub use graph::*;
 pub use orchestra::*;
 pub use process::*;
 pub use task_manager::*;
