@@ -356,6 +356,7 @@ The built-in dashboard provides real-time insights:
 - [x] Web dashboard (real-time UI)
 - [x] Graph workflows with cycles (LangGraph-style)
 - [x] Human-in-the-loop (approval gates, breakpoints, input collection)
+- [x] Structured outputs (JSON schema validation, auto-retry)
 
 ## 🔑 Environment Variables
 

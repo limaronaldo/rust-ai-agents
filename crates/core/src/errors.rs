@@ -90,6 +90,12 @@ pub enum LLMError {
 
     #[error("Model not available: {0}")]
     ModelNotAvailable(String),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 }
 
 /// Crew/orchestration errors
