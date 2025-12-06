@@ -9,6 +9,7 @@ members = [
     "crates/crew",
     "crates/monitoring",
     "crates/data",
+    "crates/wasm",
     "examples",
 ]
 

@@ -352,7 +352,7 @@ The built-in dashboard provides real-time insights:
 - [x] Persistent storage (SQLite with WAL / Sled)
 - [x] Streaming LLM responses
 - [x] Agent-to-agent delegation
-- [ ] WebAssembly compilation
+- [x] WebAssembly compilation
 - [ ] Web dashboard (real-time UI)
 
 ## 🔑 Environment Variables
@@ -375,6 +375,7 @@ The built-in dashboard provides real-time insights:
 | `rust-ai-agents-crew` | Task orchestration (sequential, parallel, hierarchical) |
 | `rust-ai-agents-monitoring` | Cost tracking, metrics, alerts |
 | `rust-ai-agents-data` | Data matching/normalization pipelines |
+| `rust-ai-agents-wasm` | WebAssembly bindings for browser/Node.js |
 
 ## 🤝 Contributing
 
