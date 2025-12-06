@@ -508,7 +508,7 @@ impl Graph {
     }
 
     /// Find the next node based on edges
-    fn find_next_node(&self, current: &str, state: &GraphState) -> Result<String, CrewError> {
+    pub fn find_next_node(&self, current: &str, state: &GraphState) -> Result<String, CrewError> {
         for edge in &self.edges {
             match edge {
                 GraphEdge::Direct { from, to } if from == current => {

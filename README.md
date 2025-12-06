@@ -357,6 +357,7 @@ The built-in dashboard provides real-time insights:
 - [x] Graph workflows with cycles (LangGraph-style)
 - [x] Human-in-the-loop (approval gates, breakpoints, input collection)
 - [x] Structured outputs (JSON schema validation, auto-retry)
+- [x] Time travel debugging (replay, fork, state history, breakpoints)
 
 ## 🔑 Environment Variables
 
