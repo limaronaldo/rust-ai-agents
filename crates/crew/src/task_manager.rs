@@ -169,8 +169,14 @@ mod tests {
     fn test_circular_dependency_detection() {
         let mut manager = TaskManager::new(4);
 
-        let task1 = Task::new("Task 1").with_dependencies(vec!["task2".to_string()]);
-        let task2 = Task::new("Task 2").with_dependencies(vec!["task1".to_string()]);
+        let mut task1 = Task::new("Task 1");
+        let mut task2 = Task::new("Task 2");
+
+        let t1_id = task1.id.clone();
+        let t2_id = task2.id.clone();
+
+        task1 = task1.with_dependencies(vec![t2_id]);
+        task2 = task2.with_dependencies(vec![t1_id]);
 
         manager.add_task(task1).unwrap();
         let result = manager.add_task(task2);
