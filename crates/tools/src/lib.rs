@@ -2,15 +2,80 @@
 //!
 //! Common tools that can be used by agents, with enhanced registry
 //! featuring circuit breaker, retry, and timeout patterns.
+//!
+//! ## Available Tools
+//!
+//! ### Math
+//! - `CalculatorTool` - Full expression evaluation with scientific functions
+//! - `UnitConverterTool` - Convert between units (length, weight, temperature)
+//! - `StatisticsTool` - Calculate mean, median, std dev, etc.
+//!
+//! ### DateTime
+//! - `CurrentTimeTool` - Get current date/time
+//! - `DateParserTool` - Parse dates in various formats
+//! - `DateCalculatorTool` - Date arithmetic and differences
+//!
+//! ### Encoding
+//! - `JsonTool` - Parse, format, merge JSON
+//! - `Base64Tool` - Encode/decode Base64
+//! - `HashTool` - SHA256/SHA512 hashing
+//! - `UrlEncodeTool` - URL encode/decode
+//!
+//! ### File System
+//! - `ReadFileTool` - Read file contents
+//! - `WriteFileTool` - Write to files
+//! - `ListDirectoryTool` - List directory contents
+//!
+//! ### Web
+//! - `HttpRequestTool` - Make HTTP requests
+//! - `WebSearchTool` - Web search (stub)
 
 pub use rust_ai_agents_core::tool::*;
 
+use std::sync::Arc;
+
+pub mod datetime;
+pub mod encoding;
 pub mod file;
 pub mod math;
 pub mod registry;
 pub mod web;
 
+pub use datetime::*;
+pub use encoding::*;
 pub use file::*;
 pub use math::*;
 pub use registry::*;
 pub use web::*;
+
+/// Create a registry with all built-in tools
+pub fn create_default_registry() -> ToolRegistry {
+    let mut registry = ToolRegistry::new();
+
+    // Math tools
+    registry.register(Arc::new(CalculatorTool::new()));
+    registry.register(Arc::new(UnitConverterTool::new()));
+    registry.register(Arc::new(StatisticsTool::new()));
+
+    // DateTime tools
+    registry.register(Arc::new(CurrentTimeTool::new()));
+    registry.register(Arc::new(DateParserTool::new()));
+    registry.register(Arc::new(DateCalculatorTool::new()));
+
+    // Encoding tools
+    registry.register(Arc::new(JsonTool::new()));
+    registry.register(Arc::new(Base64Tool::new()));
+    registry.register(Arc::new(HashTool::new()));
+    registry.register(Arc::new(UrlEncodeTool::new()));
+
+    // File tools
+    registry.register(Arc::new(ReadFileTool::new()));
+    registry.register(Arc::new(WriteFileTool::new()));
+    registry.register(Arc::new(ListDirectoryTool::new()));
+
+    // Web tools
+    registry.register(Arc::new(HttpRequestTool::new()));
+    registry.register(Arc::new(WebSearchTool::new()));
+
+    registry
+}

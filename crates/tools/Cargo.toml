@@ -14,4 +14,11 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+chrono = { workspace = true }
 parking_lot = "0.12"
+meval = "0.2"
+base64 = "0.22"
+sha2 = "0.10"
+hex = "0.4"
+urlencoding = "2.1"
+tracing = { workspace = true }

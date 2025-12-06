@@ -1,8 +1,8 @@
 //! Simple single agent example
 
+use rust_ai_agents_agents::*;
 use rust_ai_agents_core::*;
 use rust_ai_agents_providers::*;
-use rust_ai_agents_agents::*;
 use rust_ai_agents_tools::*;
 
 use std::sync::Arc;
@@ -24,8 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = Arc::new(registry);
 
     // Create LLM backend (using OpenRouter with a free model)
-    let api_key = std::env::var("OPENROUTER_API_KEY")
-        .expect("OPENROUTER_API_KEY must be set");
+    let api_key = std::env::var("OPENROUTER_API_KEY").expect("OPENROUTER_API_KEY must be set");
 
     let backend = Arc::new(OpenRouterProvider::new(
         api_key,
@@ -37,25 +36,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_capabilities(vec![Capability::Analysis])
         .with_system_prompt(
             "You are a helpful math assistant. When users ask math questions, \
-             use the calculator tool to compute accurate results."
+             use the calculator tool to compute accurate results.",
         )
         .with_temperature(0.7);
 
     // Spawn agent
     println!("📦 Spawning agent...");
-    let agent_id = engine.spawn_agent(
-        config,
-        registry.clone(),
-        backend.clone(),
-    ).await?;
+    let agent_id = engine
+        .spawn_agent(config, registry.clone(), backend.clone())
+        .await?;
 
     println!("✅ Agent spawned: {}\n", agent_id);
 
     // Send a message to the agent
-    let user_message = Message::user(
-        agent_id.clone(),
-        "What is 234 multiplied by 567?"
-    );
+    let user_message = Message::user(agent_id.clone(), "What is 234 multiplied by 567?");
 
     println!("💬 Sending message: {}", user_message.as_text().unwrap());
     engine.send_message(user_message)?;
@@ -65,10 +59,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
     // Get metrics
-    let (spawned, processed) = engine.metrics();
+    let metrics = engine.metrics();
     println!("📊 Metrics:");
-    println!("   Agents spawned: {}", spawned);
-    println!("   Messages processed: {}", processed);
+    println!("   Agents spawned: {}", metrics.agents_spawned);
+    println!("   Messages processed: {}", metrics.messages_processed);
 
     // Shutdown
     println!("\n🛑 Shutting down...");

@@ -493,6 +493,11 @@ impl Clone for EnhancedToolRegistry {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+    use rust_ai_agents_core::types::AgentId;
+
+    fn test_ctx() -> ExecutionContext {
+        ExecutionContext::new(AgentId::new("test-agent"))
+    }
 
     struct TestTool {
         should_fail: std::sync::atomic::AtomicBool,
@@ -531,7 +536,7 @@ mod tests {
 
         registry.register(tool.clone());
 
-        let ctx = ExecutionContext::new("test".to_string().into());
+        let ctx = test_ctx();
 
         // Fail twice to open circuit
         let _ = registry
