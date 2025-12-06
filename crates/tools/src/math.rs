@@ -8,6 +8,7 @@ use serde_json::json;
 /// Advanced calculator tool with full expression parsing
 pub struct CalculatorTool {
     /// Enable scientific functions (sin, cos, log, etc.)
+    #[allow(dead_code)]
     scientific: bool,
 }
 

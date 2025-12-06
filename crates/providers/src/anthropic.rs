@@ -467,6 +467,7 @@ struct AnthropicTool {
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
+#[allow(dead_code)]
 enum ToolChoice {
     #[serde(rename = "auto")]
     Auto,
@@ -477,6 +478,7 @@ enum ToolChoice {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct AnthropicResponse {
     id: String,
     model: String,
