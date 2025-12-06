@@ -1,0 +1,32 @@
+[package]
+name = "rust-ai-agents-examples"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+rust-ai-agents-core = { path = "../crates/core" }
+rust-ai-agents-providers = { path = "../crates/providers" }
+rust-ai-agents-tools = { path = "../crates/tools" }
+rust-ai-agents-agents = { path = "../crates/agents" }
+rust-ai-agents-crew = { path = "../crates/crew" }
+rust-ai-agents-monitoring = { path = "../crates/monitoring" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[[example]]
+name = "simple_agent"
+path = "simple_agent.rs"
+
+[[example]]
+name = "multi_agent_crew"
+path = "multi_agent_crew.rs"
+
+[[example]]
+name = "advanced_monitoring"
+path = "advanced_monitoring.rs"
