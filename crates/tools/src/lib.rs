@@ -39,6 +39,7 @@
 //! - `CrossReferenceEntityTool` - Cross-reference entities across data sources with PT-BR narratives
 
 pub use rust_ai_agents_core::tool::*;
+pub use rust_ai_agents_macros::Tool;
 
 use std::sync::Arc;
 
@@ -47,6 +48,7 @@ pub mod crossref;
 pub mod datetime;
 pub mod encoding;
 pub mod file;
+pub mod macro_tools;
 pub mod math;
 pub mod registry;
 #[cfg(feature = "postgres")]
@@ -58,6 +60,7 @@ pub use crossref::*;
 pub use datetime::*;
 pub use encoding::*;
 pub use file::*;
+pub use macro_tools::*;
 pub use math::*;
 pub use registry::*;
 #[cfg(feature = "postgres")]

@@ -107,6 +107,12 @@ pub enum CrewError {
     #[error("Task execution failed: {0}")]
     TaskExecutionFailed(String),
 
+    #[error("Execution failed: {0}")]
+    ExecutionFailed(String),
+
+    #[error("Invalid configuration: {0}")]
+    InvalidConfiguration(String),
+
     #[error("Agent error: {0}")]
     AgentError(#[from] AgentError),
 }
@@ -129,6 +135,12 @@ pub enum MemoryError {
 
     #[error("Serialization error: {0}")]
     SerializationError(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
+
+    #[error("Session not found: {0}")]
+    SessionNotFound(String),
 
     #[error("Not found: {0}")]
     NotFound(String),
