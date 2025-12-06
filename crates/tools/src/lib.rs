@@ -46,6 +46,7 @@ use std::sync::Arc;
 #[cfg(feature = "crossref")]
 pub mod crossref;
 pub mod datetime;
+pub mod delegation;
 pub mod encoding;
 pub mod file;
 pub mod macro_tools;
@@ -58,6 +59,7 @@ pub mod web;
 #[cfg(feature = "crossref")]
 pub use crossref::*;
 pub use datetime::*;
+pub use delegation::*;
 pub use encoding::*;
 pub use file::*;
 pub use macro_tools::*;
