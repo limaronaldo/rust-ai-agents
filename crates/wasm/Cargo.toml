@@ -44,8 +44,8 @@ futures = { workspace = true }
 tracing = { workspace = true }
 tracing-wasm = "0.2"
 
-# UUID
-uuid = { workspace = true }
+# UUID (with js feature for WASM)
+uuid = { version = "1.8", features = ["v4", "serde", "js"] }
 
 # Getrandom for WASM
 getrandom = { version = "0.2", features = ["js"] }
