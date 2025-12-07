@@ -48,7 +48,7 @@ pub struct TraceEntry {
 
 /// Type of trace entry
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", content = "data")]
 pub enum TraceEntryType {
     LlmRequest {
         model: String,

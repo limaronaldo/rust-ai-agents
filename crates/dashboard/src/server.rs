@@ -70,7 +70,10 @@ impl DashboardServer {
             // Health
             .route("/health", get(health_handler))
             // Serve static files for studio WASM
-            .nest_service("/studio/pkg", ServeDir::new("static/studio/pkg"))
+            .nest_service(
+                "/studio/pkg",
+                ServeDir::new("crates/dashboard/static/studio/pkg"),
+            )
             .layer(cors)
             .with_state(self.state.clone())
     }
@@ -144,7 +147,10 @@ impl DashboardServer {
                 // Health
                 .route("/health", get(health_handler))
                 // Serve static files for studio WASM
-                .nest_service("/studio/pkg", ServeDir::new("static/studio/pkg"))
+                .nest_service(
+                    "/studio/pkg",
+                    ServeDir::new("crates/dashboard/static/studio/pkg"),
+                )
                 .layer(cors)
                 .with_state(state);
 
