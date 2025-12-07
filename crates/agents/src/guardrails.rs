@@ -42,22 +42,19 @@ use tokio::time::timeout;
 use tracing::{debug, error, warn};
 
 /// Severity level of a guardrail violation
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum ViolationSeverity {
     /// Informational - logged but doesn't block
     Info,
     /// Warning - logged and may affect behavior
+    #[default]
     Warning,
     /// Error - blocks the operation
     Error,
     /// Critical - triggers tripwire, halts execution immediately
     Critical,
-}
-
-impl Default for ViolationSeverity {
-    fn default() -> Self {
-        Self::Warning
-    }
 }
 
 /// A violation detected by a guardrail

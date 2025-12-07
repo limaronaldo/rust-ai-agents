@@ -1,6 +1,10 @@
 //! # LLM Provider Implementations
 //!
 //! This crate provides integrations with various LLM providers:
+
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::collapsible_match)]
 //! - **OpenAI** (GPT-4, GPT-4o, GPT-3.5)
 //! - **Anthropic** (Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku)
 //! - **OpenRouter** (200+ models with unified API)

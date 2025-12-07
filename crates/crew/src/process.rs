@@ -3,9 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Process type for crew execution
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Process {
     /// Execute tasks one by one in order
+    #[default]
     Sequential,
 
     /// Execute tasks in parallel when possible
@@ -28,11 +29,5 @@ impl Process {
 impl std::fmt::Display for Process {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
-    }
-}
-
-impl Default for Process {
-    fn default() -> Self {
-        Process::Sequential
     }
 }

@@ -1,6 +1,9 @@
 //! # Model Context Protocol (MCP) Support
 //!
 //! Implementation of the Model Context Protocol for rust-ai-agents.
+
+#![allow(clippy::type_complexity)]
+#![allow(clippy::await_holding_lock)]
 //! MCP provides a standardized way to connect AI agents to external tools and data sources.
 //!
 //! ## Features

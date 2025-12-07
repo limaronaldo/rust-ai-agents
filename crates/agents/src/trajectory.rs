@@ -774,7 +774,7 @@ mod tests {
         let store = TrajectoryStore::new(2);
 
         for i in 0..5 {
-            let recorder = TrajectoryRecorder::new("agent", &format!("task-{}", i));
+            let recorder = TrajectoryRecorder::new("agent", format!("task-{}", i));
             store.store(recorder.complete("Done"));
         }
 

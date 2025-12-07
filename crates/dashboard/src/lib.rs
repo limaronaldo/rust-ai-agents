@@ -1,6 +1,10 @@
 //! # Web Dashboard
 //!
 //! Real-time web dashboard for monitoring Rust AI Agents.
+
+#![allow(clippy::type_complexity)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::collapsible_match)]
 //!
 //! ## Features
 //!

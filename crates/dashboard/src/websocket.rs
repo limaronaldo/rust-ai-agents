@@ -57,11 +57,8 @@ pub async fn handle_websocket(socket: WebSocket, state: Arc<DashboardState>) {
                 Ok(Message::Text(text)) => {
                     // Handle client messages (e.g., ping)
                     if let Ok(msg) = serde_json::from_str::<WsMessage>(&text) {
-                        match msg {
-                            WsMessage::Ping => {
-                                debug!("Received ping from {}", conn_id);
-                            }
-                            _ => {}
+                        if let WsMessage::Ping = msg {
+                            debug!("Received ping from {}", conn_id);
                         }
                     }
                 }

@@ -7,6 +7,12 @@ use serde_json::json;
 /// Read file tool
 pub struct ReadFileTool;
 
+impl Default for ReadFileTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReadFileTool {
     pub fn new() -> Self {
         Self
@@ -50,6 +56,12 @@ impl Tool for ReadFileTool {
 
 /// Write file tool
 pub struct WriteFileTool;
+
+impl Default for WriteFileTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WriteFileTool {
     pub fn new() -> Self {
@@ -103,6 +115,12 @@ impl Tool for WriteFileTool {
 
 /// List directory tool
 pub struct ListDirectoryTool;
+
+impl Default for ListDirectoryTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ListDirectoryTool {
     pub fn new() -> Self {

@@ -328,11 +328,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Agente iniciado: {}\n", agent_id);
 
     // Sample investigation queries
-    let queries = vec![
-        "Investigue Lucas Melo de Oliveira, CPF 123.456.789-00. Quero saber em quantas fontes ele aparece e se ha alguma inconsistencia.",
+    let queries = ["Investigue Lucas Melo de Oliveira, CPF 123.456.789-00. Quero saber em quantas fontes ele aparece e se ha alguma inconsistencia.",
         "Faca uma busca por Carlos Mendes. Ele tem atividade empresarial? Possui imoveis?",
-        "Pesquise Ana Clara da Silva. Qual a situacao dela no IPTU?",
-    ];
+        "Pesquise Ana Clara da Silva. Qual a situacao dela no IPTU?"];
 
     for (i, query) in queries.iter().enumerate() {
         println!("═══════════════════════════════════════════════════════════════");

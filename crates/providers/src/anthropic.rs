@@ -519,12 +519,9 @@ impl LLMBackend for AnthropicProvider {
                                     }
                                     "content_block_start" => {
                                         if let Some(content_block) = event.content_block {
-                                            match content_block {
-                                                StreamContentBlock::ToolUse { id, name, .. } => {
-                                                    current_tool_id = Some(id.clone());
-                                                    yield Ok(StreamEvent::ToolCallStart { id, name });
-                                                }
-                                                _ => {}
+                                            if let StreamContentBlock::ToolUse { id, name, .. } = content_block {
+                                                current_tool_id = Some(id.clone());
+                                                yield Ok(StreamEvent::ToolCallStart { id, name });
                                             }
                                         }
                                     }

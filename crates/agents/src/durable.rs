@@ -137,7 +137,7 @@ impl ExecutionState {
             execution_id: execution_id.into(),
             current_step: 0,
             total_steps: step_ids.len(),
-            step_results: step_ids.iter().map(|id| StepResult::pending(id)).collect(),
+            step_results: step_ids.iter().map(StepResult::pending).collect(),
             started_at: now,
             updated_at: now,
             completed_at: None,

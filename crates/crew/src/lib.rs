@@ -1,6 +1,12 @@
 //! # Crew Orchestration
 //!
 //! Multi-agent orchestration system for coordinating tasks across multiple agents.
+
+#![allow(clippy::type_complexity)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::should_implement_trait)]
 //!
 //! ## Features
 //!

@@ -382,67 +382,64 @@ impl SchemaValidator {
         result: &mut ValidationResult,
     ) {
         // Check type
-        match schema.schema_type.as_str() {
-            "object" => {
-                if !value.is_object() {
+        if schema.schema_type.as_str() == "object" {
+            if !value.is_object() {
+                result.add_error(ValidationError {
+                    path: path.to_string(),
+                    message: "Expected object".to_string(),
+                    expected: Some("object".to_string()),
+                    actual: Some(self.type_name(value)),
+                });
+                return;
+            }
+
+            let obj = value.as_object().unwrap();
+
+            // Check required fields
+            for required in &schema.required {
+                if !obj.contains_key(required) {
                     result.add_error(ValidationError {
-                        path: path.to_string(),
-                        message: "Expected object".to_string(),
-                        expected: Some("object".to_string()),
-                        actual: Some(self.type_name(value)),
+                        path: if path.is_empty() {
+                            required.clone()
+                        } else {
+                            format!("{}.{}", path, required)
+                        },
+                        message: format!("Required field '{}' is missing", required),
+                        expected: Some("present".to_string()),
+                        actual: Some("missing".to_string()),
                     });
-                    return;
                 }
+            }
 
-                let obj = value.as_object().unwrap();
+            // Validate properties
+            for (key, prop_schema) in &schema.properties {
+                if let Some(prop_value) = obj.get(key) {
+                    let prop_path = if path.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{}.{}", path, key)
+                    };
+                    self.validate_property(prop_value, prop_schema, &prop_path, result);
+                }
+            }
 
-                // Check required fields
-                for required in &schema.required {
-                    if !obj.contains_key(required) {
+            // Check for additional properties
+            if !schema.additional_properties {
+                for key in obj.keys() {
+                    if !schema.properties.contains_key(key) {
                         result.add_error(ValidationError {
                             path: if path.is_empty() {
-                                required.clone()
+                                key.clone()
                             } else {
-                                format!("{}.{}", path, required)
+                                format!("{}.{}", path, key)
                             },
-                            message: format!("Required field '{}' is missing", required),
-                            expected: Some("present".to_string()),
-                            actual: Some("missing".to_string()),
+                            message: format!("Additional property '{}' not allowed", key),
+                            expected: None,
+                            actual: None,
                         });
                     }
                 }
-
-                // Validate properties
-                for (key, prop_schema) in &schema.properties {
-                    if let Some(prop_value) = obj.get(key) {
-                        let prop_path = if path.is_empty() {
-                            key.clone()
-                        } else {
-                            format!("{}.{}", path, key)
-                        };
-                        self.validate_property(prop_value, prop_schema, &prop_path, result);
-                    }
-                }
-
-                // Check for additional properties
-                if !schema.additional_properties {
-                    for key in obj.keys() {
-                        if !schema.properties.contains_key(key) {
-                            result.add_error(ValidationError {
-                                path: if path.is_empty() {
-                                    key.clone()
-                                } else {
-                                    format!("{}.{}", path, key)
-                                },
-                                message: format!("Additional property '{}' not allowed", key),
-                                expected: None,
-                                actual: None,
-                            });
-                        }
-                    }
-                }
             }
-            _ => {}
         }
     }
 
@@ -468,7 +465,7 @@ impl SchemaValidator {
         if !valid_type {
             result.add_error(ValidationError {
                 path: path.to_string(),
-                message: format!("Type mismatch"),
+                message: "Type mismatch".to_string(),
                 expected: Some(format!("{:?}", schema.property_type).to_lowercase()),
                 actual: Some(self.type_name(value)),
             });
@@ -481,7 +478,7 @@ impl SchemaValidator {
                 if !enum_values.contains(&s.to_string()) {
                     result.add_error(ValidationError {
                         path: path.to_string(),
-                        message: format!("Value not in enum"),
+                        message: "Value not in enum".to_string(),
                         expected: Some(format!("one of: {}", enum_values.join(", "))),
                         actual: Some(s.to_string()),
                     });
@@ -495,7 +492,7 @@ impl SchemaValidator {
                 if num < min {
                     result.add_error(ValidationError {
                         path: path.to_string(),
-                        message: format!("Value below minimum"),
+                        message: "Value below minimum".to_string(),
                         expected: Some(format!(">= {}", min)),
                         actual: Some(num.to_string()),
                     });
@@ -505,7 +502,7 @@ impl SchemaValidator {
                 if num > max {
                     result.add_error(ValidationError {
                         path: path.to_string(),
-                        message: format!("Value above maximum"),
+                        message: "Value above maximum".to_string(),
                         expected: Some(format!("<= {}", max)),
                         actual: Some(num.to_string()),
                     });
@@ -519,7 +516,7 @@ impl SchemaValidator {
                 if s.len() < min {
                     result.add_error(ValidationError {
                         path: path.to_string(),
-                        message: format!("String too short"),
+                        message: "String too short".to_string(),
                         expected: Some(format!("min length {}", min)),
                         actual: Some(format!("length {}", s.len())),
                     });
