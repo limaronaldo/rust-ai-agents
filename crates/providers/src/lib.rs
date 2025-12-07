@@ -37,6 +37,7 @@ pub mod openai;
 pub mod openrouter;
 pub mod rate_limit;
 pub mod retry;
+pub mod router;
 pub mod structured;
 
 pub use anthropic::{AnthropicProvider, ClaudeModel};
@@ -49,6 +50,9 @@ pub use openai::OpenAIProvider;
 pub use openrouter::OpenRouterProvider;
 pub use rate_limit::{GovernorRateLimiter, RateLimitConfig};
 pub use retry::{with_retry, RetryConfig};
+pub use router::{
+    FallbackConfig, ModelRouter, ModelRouterBuilder, ProviderHealthStatus, RouteConfig,
+};
 pub use structured::{
     JsonSchema, PropertySchema, PropertyType, SchemaBuilder, SchemaValidator, StructuredConfig,
     StructuredOutput, StructuredResult, ValidationError, ValidationResult,
