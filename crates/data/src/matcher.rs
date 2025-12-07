@@ -390,7 +390,7 @@ mod tests {
 
         assert!(!results.is_empty(), "Should find Ana");
         // Ana appears in both sources with slightly different names
-        assert!(results[0].sources.len() >= 1);
+        assert!(!results[0].sources.is_empty());
     }
 
     #[test]

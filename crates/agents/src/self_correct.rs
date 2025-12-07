@@ -370,7 +370,7 @@ impl SelfCorrectingWorkflow {
             // Generate output
             let output = generator(current_prompt.clone())
                 .await
-                .map_err(|e| SelfCorrectError::ExecutionFailed(e))?;
+                .map_err(SelfCorrectError::ExecutionFailed)?;
 
             // Evaluate with all judges
             let context = JudgmentContext::new(&input, &output)

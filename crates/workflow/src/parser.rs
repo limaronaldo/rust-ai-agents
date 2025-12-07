@@ -151,7 +151,7 @@ impl WorkflowParser {
         // Initialize
         for task in &workflow.tasks {
             in_degree.entry(&task.id).or_insert(0);
-            graph.entry(&task.id).or_insert_with(Vec::new);
+            graph.entry(&task.id).or_default();
         }
 
         // Build graph (reverse direction: dependency -> dependent)
@@ -159,7 +159,7 @@ impl WorkflowParser {
             for dep in &task.depends_on {
                 graph
                     .entry(dep.as_str())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(&task.id);
                 *in_degree.entry(&task.id).or_insert(0) += 1;
             }

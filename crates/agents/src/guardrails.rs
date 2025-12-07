@@ -43,10 +43,12 @@ use tracing::{debug, error, warn};
 
 /// Severity level of a guardrail violation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ViolationSeverity {
     /// Informational - logged but doesn't block
     Info,
     /// Warning - logged and may affect behavior
+    #[default]
     Warning,
     /// Error - blocks the operation
     Error,
@@ -54,11 +56,6 @@ pub enum ViolationSeverity {
     Critical,
 }
 
-impl Default for ViolationSeverity {
-    fn default() -> Self {
-        Self::Warning
-    }
-}
 
 /// A violation detected by a guardrail
 #[derive(Debug, Clone, Serialize, Deserialize)]

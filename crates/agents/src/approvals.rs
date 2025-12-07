@@ -299,7 +299,7 @@ impl TerminalApprovalHandler {
 
     fn format_request(&self, request: &ApprovalRequest) -> String {
         let mut output = String::new();
-        output.push_str("\n");
+        output.push('\n');
         output.push_str("╔══════════════════════════════════════════════════════════════╗\n");
         output.push_str("║              🔒 TOOL APPROVAL REQUIRED                       ║\n");
         output.push_str("╠══════════════════════════════════════════════════════════════╣\n");

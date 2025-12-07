@@ -63,7 +63,7 @@ impl Tool for UnreliableApiTool {
         tokio::time::sleep(Duration::from_millis(50 + (count as u64 % 100))).await;
 
         // Fail every N calls
-        if count > 0 && count % self.fail_every_n == 0 {
+        if count > 0 && count.is_multiple_of(self.fail_every_n) {
             return Err(rust_ai_agents_core::errors::ToolError::ExecutionFailed(
                 "Simulated API failure".to_string(),
             ));

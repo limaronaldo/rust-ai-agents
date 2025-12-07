@@ -247,7 +247,7 @@ impl Tool for UnitConverterTool {
 
         let result = self
             .convert(value, from, to)
-            .map_err(|e| ToolError::ExecutionFailed(e))?;
+            .map_err(ToolError::ExecutionFailed)?;
 
         Ok(json!({
             "value": value,
@@ -317,7 +317,7 @@ impl Tool for StatisticsTool {
         let mut sorted = numbers.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        let median = if count % 2 == 0 {
+        let median = if count.is_multiple_of(2) {
             (sorted[count / 2 - 1] + sorted[count / 2]) / 2.0
         } else {
             sorted[count / 2]

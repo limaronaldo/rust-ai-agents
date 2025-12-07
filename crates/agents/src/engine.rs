@@ -532,7 +532,7 @@ impl AgentEngine {
             config
                 .system_prompt
                 .as_ref()
-                .map(|s| LLMMessage::system(s))
+                .map(LLMMessage::system)
                 .unwrap_or_else(|| {
                     LLMMessage::system("You are a planning agent. Create detailed execution plans.")
                 }),

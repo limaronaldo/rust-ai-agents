@@ -205,11 +205,10 @@ impl AgentRegistry {
             }
 
             let score = agent.match_score(task);
-            if score > 0.0 {
-                if best.is_none() || score > best.as_ref().unwrap().1 {
+            if score > 0.0
+                && (best.is_none() || score > best.as_ref().unwrap().1) {
                     best = Some((name.clone(), score));
                 }
-            }
         }
 
         best

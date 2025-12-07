@@ -139,7 +139,7 @@ async fn create_label(args: &Args, label: &Label) -> Result<()> {
     }
 
     let output = Command::new("gh")
-        .args(&[
+        .args([
             "label",
             "create",
             &label.name,
@@ -162,7 +162,7 @@ async fn create_label(args: &Args, label: &Label) -> Result<()> {
         let str_err = String::from_utf8_lossy(&output.stderr);
         if str_err.contains("already exists") {
             let edit_output = Command::new("gh")
-                .args(&[
+                .args([
                     "label",
                     "edit",
                     &label.name,
@@ -191,7 +191,7 @@ async fn create_label(args: &Args, label: &Label) -> Result<()> {
 async fn create_milestone(args: &Args, milestone: &Milestone) -> Result<u64> {
     // Check existence
     let check_cmd = Command::new("gh")
-        .args(&[
+        .args([
             "api",
             &format!("repos/{}/{}/milestones", args.owner, args.repo),
             "--jq",
@@ -214,7 +214,7 @@ async fn create_milestone(args: &Args, milestone: &Milestone) -> Result<u64> {
     }
 
     let create_cmd = Command::new("gh")
-        .args(&[
+        .args([
             "api",
             &format!("repos/{}/{}/milestones", args.owner, args.repo),
             "-X",
@@ -260,7 +260,7 @@ async fn create_issue(
 
     // Check existence
     let check_cmd = Command::new("gh")
-        .args(&[
+        .args([
             "issue",
             "list",
             "--repo",
@@ -290,7 +290,7 @@ async fn create_issue(
     }
 
     let mut cmd = Command::new("gh");
-    cmd.args(&[
+    cmd.args([
         "issue",
         "create",
         "--repo",
@@ -300,11 +300,11 @@ async fn create_issue(
         "--body-file",
         body_path.to_str().unwrap(),
         "--milestone",
-        &milestone_title, // gh issue create accepts title or number
+        milestone_title, // gh issue create accepts title or number
     ]);
 
     for label in &issue.labels {
-        cmd.args(&["--label", label]);
+        cmd.args(["--label", label]);
     }
 
     let output = cmd.output().await?;

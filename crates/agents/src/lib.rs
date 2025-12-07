@@ -1,6 +1,12 @@
 //! # Agent Implementation
 //!
 //! High-performance agent execution with ReACT loop (Reasoning + Acting)
+
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::should_implement_trait)]
 //!
 //! ## Features
 //!

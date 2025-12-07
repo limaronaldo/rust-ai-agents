@@ -20,7 +20,6 @@ use rust_ai_agents_core::tool::{ExecutionContext, ToolRegistry};
 use rust_ai_agents_core::types::AgentId;
 use rust_ai_agents_mcp::{McpClient, McpToolBridge, StdioTransport};
 use tracing::info;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<()> {

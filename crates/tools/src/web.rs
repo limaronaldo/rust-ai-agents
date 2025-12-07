@@ -7,6 +7,12 @@ use serde_json::json;
 /// Web search tool (stub - requires external API)
 pub struct WebSearchTool;
 
+impl Default for WebSearchTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebSearchTool {
     pub fn new() -> Self {
         Self
@@ -59,6 +65,12 @@ impl Tool for WebSearchTool {
 
 /// HTTP request tool
 pub struct HttpRequestTool;
+
+impl Default for HttpRequestTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl HttpRequestTool {
     pub fn new() -> Self {
@@ -151,7 +163,7 @@ impl Tool for HttpRequestTool {
                     "status": status,
                     "headers": response_headers,
                     "body": body,
-                    "success": status >= 200 && status < 300
+                    "success": (200..300).contains(&status)
                 }))
             }
             Err(e) => Err(ToolError::ExecutionFailed(e.to_string())),

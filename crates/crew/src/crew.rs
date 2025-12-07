@@ -159,7 +159,7 @@ impl Crew {
         // Send to agent
         self.engine
             .send_message(message)
-            .map_err(|e| CrewError::AgentError(e))?;
+            .map_err(CrewError::AgentError)?;
 
         // Wait for agent to process with timeout
         // Use timeout from task context or default to 60 seconds

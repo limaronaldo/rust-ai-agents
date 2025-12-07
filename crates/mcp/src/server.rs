@@ -430,7 +430,7 @@ impl McpServer {
         params: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, McpError> {
         let _params: InitializeParams = params
-            .map(|p| serde_json::from_value(p))
+            .map(serde_json::from_value)
             .transpose()
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .unwrap_or_else(|| InitializeParams {
@@ -502,7 +502,7 @@ impl McpServer {
         params: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, McpError> {
         let params: CallToolParams = params
-            .map(|p| serde_json::from_value(p))
+            .map(serde_json::from_value)
             .transpose()
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing params".to_string()))?;
@@ -545,7 +545,7 @@ impl McpServer {
         }
 
         let params: ReadParams = params
-            .map(|p| serde_json::from_value(p))
+            .map(serde_json::from_value)
             .transpose()
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing uri".to_string()))?;
@@ -591,7 +591,7 @@ impl McpServer {
         }
 
         let params: GetParams = params
-            .map(|p| serde_json::from_value(p))
+            .map(serde_json::from_value)
             .transpose()
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing name".to_string()))?;

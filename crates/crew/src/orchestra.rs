@@ -212,7 +212,7 @@ impl DefaultSynthesizer {
     fn extract_key_points(content: &str) -> Vec<String> {
         // Simple extraction: split by sentences and take first few
         content
-            .split(|c| c == '.' || c == '\n')
+            .split(['.', '\n'])
             .filter(|s| s.trim().len() > 20)
             .take(5)
             .map(|s| s.trim().to_string())

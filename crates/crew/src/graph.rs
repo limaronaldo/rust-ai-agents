@@ -422,7 +422,7 @@ impl Graph {
 
             // Save checkpoint if enabled
             if self.config.checkpointing
-                && state.metadata.iterations % self.config.checkpoint_interval == 0
+                && state.metadata.iterations.is_multiple_of(self.config.checkpoint_interval)
             {
                 if let Some(store) = &self.checkpoint_store {
                     let checkpoint = Checkpoint {
@@ -539,7 +539,7 @@ impl Graph {
     pub fn to_mermaid(&self) -> String {
         let mut lines = vec!["graph TD".to_string()];
 
-        for (id, _node) in &self.nodes {
+        for id in self.nodes.keys() {
             let display_id = if id == START {
                 "START"
             } else if id == END {

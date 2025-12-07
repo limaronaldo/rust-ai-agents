@@ -1,6 +1,11 @@
 //! # Built-in Tools
 //!
 //! Common tools that can be used by agents, with enhanced registry
+
+#![allow(clippy::new_without_default)]
+#![allow(clippy::match_single_binding)]
+#![allow(clippy::match_wildcard_for_single_variants)]
+#![allow(clippy::wildcard_in_or_patterns)]
 //! featuring circuit breaker, retry, and timeout patterns.
 //!
 //! ## Available Tools
