@@ -64,7 +64,8 @@ impl UseChatState {
         // Spawn async request
         spawn(async move {
             let result = if options.stream {
-                send_streaming_request(&options, current_messages, streaming_content, should_stop).await
+                send_streaming_request(&options, current_messages, streaming_content, should_stop)
+                    .await
             } else {
                 send_request(&options, current_messages).await
             };
@@ -293,7 +294,8 @@ async fn send_streaming_request(
         .stream(true)
         .build()?;
 
-    let response = fetch_stream(&http_request.url, &http_request.headers, &http_request.body).await?;
+    let response =
+        fetch_stream(&http_request.url, &http_request.headers, &http_request.body).await?;
 
     let mut full_content = String::new();
     let reader = response
@@ -349,8 +351,8 @@ async fn fetch(url: &str, headers: &[(String, String)], body: &str) -> Result<St
     opts.set_mode(RequestMode::Cors);
     opts.set_body(&JsValue::from_str(body));
 
-    let js_headers = web_sys::Headers::new()
-        .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
+    let js_headers =
+        web_sys::Headers::new().map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
 
     for (key, value) in headers {
         js_headers
@@ -362,7 +364,8 @@ async fn fetch(url: &str, headers: &[(String, String)], body: &str) -> Result<St
     let request = Request::new_with_str_and_init(url, &opts)
         .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
 
-    let window = web_sys::window().ok_or_else(|| DioxusAiError::RequestFailed("No window".to_string()))?;
+    let window =
+        web_sys::window().ok_or_else(|| DioxusAiError::RequestFailed("No window".to_string()))?;
 
     let resp_value = JsFuture::from(window.fetch_with_request(&request))
         .await
@@ -374,19 +377,28 @@ async fn fetch(url: &str, headers: &[(String, String)], body: &str) -> Result<St
 
     if !resp.ok() {
         let status = resp.status();
-        let text = JsFuture::from(resp.text().map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?)
-            .await
-            .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?
-            .as_string()
-            .unwrap_or_default();
-        return Err(DioxusAiError::ApiError(format!("HTTP {}: {}", status, text)));
-    }
-
-    let text = JsFuture::from(resp.text().map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?)
+        let text = JsFuture::from(
+            resp.text()
+                .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?,
+        )
         .await
         .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?
         .as_string()
         .unwrap_or_default();
+        return Err(DioxusAiError::ApiError(format!(
+            "HTTP {}: {}",
+            status, text
+        )));
+    }
+
+    let text = JsFuture::from(
+        resp.text()
+            .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?,
+    )
+    .await
+    .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?
+    .as_string()
+    .unwrap_or_default();
 
     Ok(text)
 }
@@ -397,8 +409,8 @@ async fn fetch_stream(url: &str, headers: &[(String, String)], body: &str) -> Re
     opts.set_mode(RequestMode::Cors);
     opts.set_body(&JsValue::from_str(body));
 
-    let js_headers = web_sys::Headers::new()
-        .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
+    let js_headers =
+        web_sys::Headers::new().map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
 
     for (key, value) in headers {
         js_headers
@@ -410,7 +422,8 @@ async fn fetch_stream(url: &str, headers: &[(String, String)], body: &str) -> Re
     let request = Request::new_with_str_and_init(url, &opts)
         .map_err(|e| DioxusAiError::RequestFailed(format!("{:?}", e)))?;
 
-    let window = web_sys::window().ok_or_else(|| DioxusAiError::RequestFailed("No window".to_string()))?;
+    let window =
+        web_sys::window().ok_or_else(|| DioxusAiError::RequestFailed("No window".to_string()))?;
 
     let resp_value = JsFuture::from(window.fetch_with_request(&request))
         .await
