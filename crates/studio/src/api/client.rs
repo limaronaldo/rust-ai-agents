@@ -41,6 +41,8 @@ impl ApiClient {
         Self::new(origin)
     }
 
+    // ==================== Metrics ====================
+
     /// Get current metrics
     pub async fn get_metrics(&self) -> ApiResult<DashboardMetrics> {
         self.get("/api/metrics").await
@@ -51,6 +53,8 @@ impl ApiClient {
         self.get("/api/stats").await
     }
 
+    // ==================== Traces ====================
+
     /// Get all traces
     pub async fn get_traces(&self) -> ApiResult<Vec<TraceEntry>> {
         self.get("/api/traces").await
@@ -58,8 +62,11 @@ impl ApiClient {
 
     /// Get traces for a session
     pub async fn get_session_traces(&self, session_id: &str) -> ApiResult<Vec<TraceEntry>> {
-        self.get(&format!("/api/sessions/{}/traces", session_id)).await
+        self.get(&format!("/api/sessions/{}/traces", session_id))
+            .await
     }
+
+    // ==================== Sessions ====================
 
     /// Get all sessions
     pub async fn get_sessions(&self) -> ApiResult<Vec<Session>> {
@@ -73,8 +80,39 @@ impl ApiClient {
 
     /// Get messages for a session
     pub async fn get_session_messages(&self, session_id: &str) -> ApiResult<Vec<SessionMessage>> {
-        self.get(&format!("/api/sessions/{}/messages", session_id)).await
+        self.get(&format!("/api/sessions/{}/messages", session_id))
+            .await
     }
+
+    // ==================== Agents ====================
+
+    /// Get all registered agents
+    pub async fn get_agents(&self) -> ApiResult<Vec<AgentStatus>> {
+        self.get("/api/agents").await
+    }
+
+    /// Get agent by ID
+    pub async fn get_agent(&self, id: &str) -> ApiResult<AgentStatus> {
+        self.get(&format!("/api/agents/{}", id)).await
+    }
+
+    /// Start an agent
+    pub async fn start_agent(&self, id: &str) -> ApiResult<()> {
+        self.post(&format!("/api/agents/{}/start", id), None).await
+    }
+
+    /// Stop an agent
+    pub async fn stop_agent(&self, id: &str) -> ApiResult<()> {
+        self.post(&format!("/api/agents/{}/stop", id), None).await
+    }
+
+    /// Restart an agent
+    pub async fn restart_agent(&self, id: &str) -> ApiResult<()> {
+        self.post(&format!("/api/agents/{}/restart", id), None)
+            .await
+    }
+
+    // ==================== HTTP Methods ====================
 
     /// Generic GET request
     async fn get<T: for<'de> serde::Deserialize<'de>>(&self, path: &str) -> ApiResult<T> {
@@ -92,8 +130,45 @@ impl ApiClient {
             .set("Accept", "application/json")
             .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?;
 
-        let window = web_sys::window()
-            .ok_or_else(|| ApiError::RequestFailed("No window".to_string()))?;
+        self.execute(request).await
+    }
+
+    /// Generic POST request
+    async fn post<T: for<'de> serde::Deserialize<'de>>(
+        &self,
+        path: &str,
+        body: Option<&str>,
+    ) -> ApiResult<T> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let opts = RequestInit::new();
+        opts.set_method("POST");
+        opts.set_mode(RequestMode::Cors);
+
+        if let Some(body) = body {
+            opts.set_body(&JsValue::from_str(body));
+        }
+
+        let request = Request::new_with_str_and_init(&url, &opts)
+            .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?;
+
+        request
+            .headers()
+            .set("Accept", "application/json")
+            .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?;
+
+        request
+            .headers()
+            .set("Content-Type", "application/json")
+            .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?;
+
+        self.execute(request).await
+    }
+
+    /// Execute a request and parse the response
+    async fn execute<T: for<'de> serde::Deserialize<'de>>(&self, request: Request) -> ApiResult<T> {
+        let window =
+            web_sys::window().ok_or_else(|| ApiError::RequestFailed("No window".to_string()))?;
 
         let resp_value = JsFuture::from(window.fetch_with_request(&request))
             .await
@@ -105,19 +180,34 @@ impl ApiClient {
 
         if !resp.ok() {
             let status = resp.status();
-            let text = JsFuture::from(resp.text().map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?)
-                .await
-                .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?
-                .as_string()
-                .unwrap_or_default();
-            return Err(ApiError::ApiError { status, message: text });
-        }
-
-        let text = JsFuture::from(resp.text().map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?)
+            let text = JsFuture::from(
+                resp.text()
+                    .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?,
+            )
             .await
             .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?
             .as_string()
             .unwrap_or_default();
+            return Err(ApiError::ApiError {
+                status,
+                message: text,
+            });
+        }
+
+        let text = JsFuture::from(
+            resp.text()
+                .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?,
+        )
+        .await
+        .map_err(|e| ApiError::RequestFailed(format!("{:?}", e)))?
+        .as_string()
+        .unwrap_or_default();
+
+        // Handle empty response for void endpoints
+        if text.is_empty() || text == "null" {
+            // Try to parse as the expected type, which works for () via serde
+            return serde_json::from_str("null").map_err(|e| ApiError::ParseError(e.to_string()));
+        }
 
         serde_json::from_str(&text).map_err(|e| ApiError::ParseError(e.to_string()))
     }
