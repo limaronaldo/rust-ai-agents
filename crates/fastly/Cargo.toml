@@ -1,0 +1,30 @@
+[package]
+name = "rust-ai-agents-fastly"
+version = "0.1.0"
+edition = "2021"
+description = "Fastly Compute runtime for rust-ai-agents"
+license = "Apache-2.0"
+authors = ["Ronaldo Lima"]
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+keywords = ["ai", "agents", "llm", "fastly", "edge"]
+categories = ["api-bindings", "wasm"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Shared LLM client logic
+rust-ai-agents-llm-client = { path = "../llm-client" }
+
+# Fastly SDK
+fastly = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+
+[dev-dependencies]
+# Note: Fastly Compute testing requires the Fastly CLI
