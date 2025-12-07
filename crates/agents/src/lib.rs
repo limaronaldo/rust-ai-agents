@@ -27,6 +27,8 @@ pub mod checkpoint;
 pub mod discovery;
 pub mod durable;
 pub mod engine;
+#[cfg(test)]
+mod engine_integration_tests;
 pub mod executor;
 pub mod factory;
 pub mod guardrails;
