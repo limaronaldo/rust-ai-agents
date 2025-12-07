@@ -21,6 +21,7 @@ members = [
     "crates/fastly",
     "crates/leptos-ai",
     "crates/dioxus-ai",
+    "crates/studio",
     "examples",
 ]
 

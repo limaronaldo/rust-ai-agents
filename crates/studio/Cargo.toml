@@ -1,0 +1,54 @@
+[package]
+name = "rust-ai-agents-studio"
+version = "0.1.0"
+edition = "2021"
+description = "Agent Studio - Web UI for monitoring and debugging AI agents"
+license = "Apache-2.0"
+authors = ["Ronaldo Lima"]
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Leptos framework
+leptos = { version = "0.8", features = ["csr"] }
+leptos_router = "0.8"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde", "wasmbind"] }
+
+# Web APIs
+web-sys = { version = "0.3", features = [
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+    "WebSocket",
+    "MessageEvent",
+    "CloseEvent",
+    "ErrorEvent",
+    "Location",
+] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Console logging for WASM
+console_error_panic_hook = "0.1"
+tracing-wasm = "0.2"
+
+# Error handling
+thiserror = "1.0"
+
+[features]
+default = ["csr"]
+csr = ["leptos/csr"]
+ssr = ["leptos/ssr"]
+hydrate = ["leptos/hydrate"]
