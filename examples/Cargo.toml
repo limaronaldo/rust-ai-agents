@@ -71,3 +71,7 @@ path = "mcp_server.rs"
 [[example]]
 name = "mcp_sse_server"
 path = "mcp_sse_server.rs"
+
+[[example]]
+name = "mcp_agent_server"
+path = "mcp_agent_server.rs"
