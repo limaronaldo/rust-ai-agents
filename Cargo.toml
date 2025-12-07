@@ -15,7 +15,9 @@ members = [
     "crates/workflow",
     "crates/resilience",
     "crates/cache",
-    "examples", "crates/github-ops",
+    "crates/audit",
+    "crates/github-ops",
+    "examples",
 ]
 
 [workspace.package]
