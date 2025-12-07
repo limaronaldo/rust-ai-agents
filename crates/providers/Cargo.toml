@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 rust-ai-agents-core = { path = "../core" }
+rust-ai-agents-monitoring = { path = "../monitoring" }
 tokio = { workspace = true }
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 serde = { workspace = true }

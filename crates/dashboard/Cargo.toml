@@ -37,3 +37,6 @@ futures = { workspace = true }
 
 # Synchronization
 parking_lot = "0.12"
+
+# Prometheus metrics
+metrics-exporter-prometheus = "0.15"
