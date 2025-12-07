@@ -36,6 +36,9 @@ mod websocket;
 #[cfg(feature = "agents")]
 pub mod integration;
 
+#[cfg(feature = "streaming")]
+pub mod streaming;
+
 pub use server::DashboardServer;
 pub use state::{
     AgentStatus, DashboardMetrics, DashboardState, Session, SessionStatus, TraceEntry,
@@ -46,3 +49,6 @@ pub use state::{
 pub use integration::{
     add_demo_data, AgentBridge, DashboardBridge, SessionBridge, TrajectoryBridge,
 };
+
+#[cfg(feature = "streaming")]
+pub use streaming::{streaming_routes, StreamEventOutput, StreamInferenceRequest, StreamingState};
