@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Studio - Rust AI Agents</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569',
+                            500: '#64748b',
+                            400: '#94a3b8',
+                            300: '#cbd5e1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base styles */
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Loading screen */
+        #loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #0f172a;
+            z-index: 9999;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* Ensure app takes full height */
+        #app {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="dark">
+    <!-- Loading screen shown while WASM loads -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading Agent Studio...</p>
+    </div>
+
+    <!-- App mount point -->
+    <div id="app"></div>
+
+    <!-- Load WASM module -->
+    <script type="module">
+        import init from '/studio/pkg/rust_ai_agents_studio.js';
+
+        async function run() {
+            try {
+                await init();
+                // Hide loading screen once WASM is initialized
+                document.getElementById('loading').classList.add('hidden');
+            } catch (e) {
+                console.error('Failed to load WASM:', e);
+                document.getElementById('loading').innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <p style="font-size: 3rem; margin-bottom: 1rem;">⚠️</p>
+                        <h2 style="color: #ef4444; margin-bottom: 0.5rem;">Failed to load Agent Studio</h2>
+                        <p style="color: #94a3b8; margin-bottom: 1rem;">${e.message || 'Unknown error'}</p>
+                        <p style="color: #64748b; font-size: 0.875rem; margin-bottom: 1rem;">
+                            Make sure the WASM files are built and available at /studio/pkg/
+                        </p>
+                        <div style="display: flex; gap: 1rem; justify-content: center;">
+                            <button onclick="location.reload()" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
+                                Retry
+                            </button>
+                            <a href="/" style="padding: 0.5rem 1rem; background: #475569; color: white; border: none; border-radius: 0.5rem; cursor: pointer; text-decoration: none;">
+                                Legacy Dashboard
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        run();
+    </script>
+</body>
+</html>

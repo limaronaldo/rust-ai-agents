@@ -362,6 +362,121 @@ pub enum Trend {
     Stable,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_data_point_creation() {
+        let point = DataPoint {
+            timestamp: 1.0,
+            value: 100.5,
+        };
+
+        assert_eq!(point.timestamp, 1.0);
+        assert!((point.value - 100.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_data_point_series() {
+        let series: Vec<DataPoint> = (0..10)
+            .map(|i| DataPoint {
+                timestamp: i as f64,
+                value: (i * 10) as f64,
+            })
+            .collect();
+
+        assert_eq!(series.len(), 10);
+        assert_eq!(series[0].value, 0.0);
+        assert_eq!(series[9].value, 90.0);
+    }
+
+    #[test]
+    fn test_trend_equality() {
+        assert_eq!(Trend::Up, Trend::Up);
+        assert_eq!(Trend::Down, Trend::Down);
+        assert_eq!(Trend::Stable, Trend::Stable);
+        assert_ne!(Trend::Up, Trend::Down);
+    }
+
+    #[test]
+    fn test_trend_clone_copy() {
+        let trend = Trend::Up;
+        let cloned = trend.clone();
+        let copied: Trend = trend;
+
+        assert_eq!(trend, cloned);
+        assert_eq!(trend, copied);
+    }
+
+    #[test]
+    fn test_calculate_trend() {
+        fn calc_trend(data: &[f64]) -> Option<Trend> {
+            if data.len() < 2 {
+                return None;
+            }
+            let last = *data.last()?;
+            let prev = *data.get(data.len() - 2)?;
+            Some(if last > prev {
+                Trend::Up
+            } else if last < prev {
+                Trend::Down
+            } else {
+                Trend::Stable
+            })
+        }
+
+        assert_eq!(calc_trend(&[1.0, 2.0, 3.0]), Some(Trend::Up));
+        assert_eq!(calc_trend(&[3.0, 2.0, 1.0]), Some(Trend::Down));
+        assert_eq!(calc_trend(&[1.0, 1.0, 1.0]), Some(Trend::Stable));
+        assert_eq!(calc_trend(&[1.0]), None);
+        assert_eq!(calc_trend(&[]), None);
+    }
+
+    #[test]
+    fn test_data_point_min_max() {
+        let data = vec![
+            DataPoint {
+                timestamp: 0.0,
+                value: 10.0,
+            },
+            DataPoint {
+                timestamp: 1.0,
+                value: 5.0,
+            },
+            DataPoint {
+                timestamp: 2.0,
+                value: 15.0,
+            },
+        ];
+
+        let min = data.iter().map(|d| d.value).fold(f64::INFINITY, f64::min);
+        let max = data
+            .iter()
+            .map(|d| d.value)
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        assert!((min - 5.0).abs() < 0.001);
+        assert!((max - 15.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_normalize_value() {
+        fn normalize(value: f64, min: f64, max: f64) -> f64 {
+            if (max - min).abs() < f64::EPSILON {
+                0.5
+            } else {
+                (value - min) / (max - min)
+            }
+        }
+
+        assert!((normalize(50.0, 0.0, 100.0) - 0.5).abs() < 0.001);
+        assert!((normalize(0.0, 0.0, 100.0) - 0.0).abs() < 0.001);
+        assert!((normalize(100.0, 0.0, 100.0) - 1.0).abs() < 0.001);
+        assert!((normalize(50.0, 50.0, 50.0) - 0.5).abs() < 0.001);
+    }
+}
+
 /// Gauge/meter component
 #[component]
 pub fn Gauge(

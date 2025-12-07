@@ -1,14 +1,23 @@
 //! Dashboard HTTP server
 
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use rust_ai_agents_monitoring::CostTracker;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 use tracing::info;
 
-use crate::handlers::{health_handler, index_handler, metrics_handler, stats_handler, ws_handler};
+use crate::handlers::{
+    agent_handler, agents_handler, health_handler, index_handler, metrics_handler,
+    restart_agent_handler, session_handler, session_messages_handler, session_traces_handler,
+    sessions_handler, start_agent_handler, stats_handler, stop_agent_handler, studio_handler,
+    traces_handler, ws_handler,
+};
 use crate::state::DashboardState;
 
 /// Dashboard web server
@@ -37,11 +46,31 @@ impl DashboardServer {
             .allow_headers(Any);
 
         Router::new()
+            // Pages
             .route("/", get(index_handler))
+            .route("/studio", get(studio_handler))
+            // WebSocket
             .route("/ws", get(ws_handler))
+            // API - Metrics
             .route("/api/metrics", get(metrics_handler))
             .route("/api/stats", get(stats_handler))
+            // API - Traces
+            .route("/api/traces", get(traces_handler))
+            // API - Sessions
+            .route("/api/sessions", get(sessions_handler))
+            .route("/api/sessions/:id", get(session_handler))
+            .route("/api/sessions/:id/traces", get(session_traces_handler))
+            .route("/api/sessions/:id/messages", get(session_messages_handler))
+            // API - Agents
+            .route("/api/agents", get(agents_handler))
+            .route("/api/agents/:id", get(agent_handler))
+            .route("/api/agents/:id/start", post(start_agent_handler))
+            .route("/api/agents/:id/stop", post(stop_agent_handler))
+            .route("/api/agents/:id/restart", post(restart_agent_handler))
+            // Health
             .route("/health", get(health_handler))
+            // Serve static files for studio WASM
+            .nest_service("/studio/pkg", ServeDir::new("static/studio/pkg"))
             .layer(cors)
             .with_state(self.state.clone())
     }
@@ -52,6 +81,8 @@ impl DashboardServer {
         let listener = TcpListener::bind(addr).await?;
 
         info!("Dashboard running at http://{}", addr);
+        info!("  Legacy dashboard: http://{}/", addr);
+        info!("  Agent Studio:     http://{}/studio", addr);
 
         // Spawn periodic metrics broadcast
         let state = self.state.clone();
@@ -83,22 +114,44 @@ impl DashboardServer {
                 }
             });
 
+            let cors = CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any);
+
             let router = Router::new()
+                // Pages
                 .route("/", get(index_handler))
+                .route("/studio", get(studio_handler))
+                // WebSocket
                 .route("/ws", get(ws_handler))
+                // API - Metrics
                 .route("/api/metrics", get(metrics_handler))
                 .route("/api/stats", get(stats_handler))
+                // API - Traces
+                .route("/api/traces", get(traces_handler))
+                // API - Sessions
+                .route("/api/sessions", get(sessions_handler))
+                .route("/api/sessions/:id", get(session_handler))
+                .route("/api/sessions/:id/traces", get(session_traces_handler))
+                .route("/api/sessions/:id/messages", get(session_messages_handler))
+                // API - Agents
+                .route("/api/agents", get(agents_handler))
+                .route("/api/agents/:id", get(agent_handler))
+                .route("/api/agents/:id/start", post(start_agent_handler))
+                .route("/api/agents/:id/stop", post(stop_agent_handler))
+                .route("/api/agents/:id/restart", post(restart_agent_handler))
+                // Health
                 .route("/health", get(health_handler))
-                .layer(
-                    CorsLayer::new()
-                        .allow_origin(Any)
-                        .allow_methods(Any)
-                        .allow_headers(Any),
-                )
+                // Serve static files for studio WASM
+                .nest_service("/studio/pkg", ServeDir::new("static/studio/pkg"))
+                .layer(cors)
                 .with_state(state);
 
             let listener = TcpListener::bind(&addr).await.unwrap();
             info!("Dashboard running at http://{}", addr);
+            info!("  Legacy dashboard: http://{}/", addr);
+            info!("  Agent Studio:     http://{}/studio", addr);
             axum::serve(listener, router).await.unwrap();
         })
     }

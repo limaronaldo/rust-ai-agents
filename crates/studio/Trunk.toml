@@ -1,0 +1,37 @@
+# Trunk configuration for building Agent Studio WASM
+# https://trunkrs.dev/configuration/
+
+[build]
+# Output directory for the built files
+dist = "dist"
+# Target for the WASM build
+target = "index.html"
+# Release mode by default
+release = false
+
+[watch]
+# Files to watch for changes
+watch = ["src", "index.html", "Cargo.toml"]
+# Ignore patterns
+ignore = ["dist", "target"]
+
+[serve]
+# Development server configuration
+address = "127.0.0.1"
+port = 8080
+# Enable WebSocket for live reload
+ws_protocol = "ws"
+
+[clean]
+# Directories to clean
+dist = "dist"
+cargo = false
+
+# Optimize WASM in release mode
+[build.release]
+release = true
+
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = ["-c", "echo 'Build complete! Output in dist/'"]

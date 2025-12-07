@@ -132,3 +132,122 @@ pub enum WsMessage {
     Ping,
     Pong,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_agent_status_serialization() {
+        let agent = AgentStatus {
+            id: "agent-1".to_string(),
+            name: "Test Agent".to_string(),
+            role: "assistant".to_string(),
+            status: "running".to_string(),
+            messages_processed: 42,
+            last_activity: None,
+            current_task: Some("Processing".to_string()),
+        };
+
+        let json = serde_json::to_string(&agent).unwrap();
+        let deserialized: AgentStatus = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(agent, deserialized);
+    }
+
+    #[test]
+    fn test_cost_stats_default() {
+        let stats = CostStats::default();
+
+        assert_eq!(stats.total_cost, 0.0);
+        assert_eq!(stats.total_tokens, 0);
+        assert_eq!(stats.total_requests, 0);
+        assert_eq!(stats.avg_latency_ms, 0.0);
+    }
+
+    #[test]
+    fn test_session_status_serialization() {
+        let statuses = vec![
+            SessionStatus::Active,
+            SessionStatus::Completed,
+            SessionStatus::Failed,
+            SessionStatus::Archived,
+        ];
+
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: SessionStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(status, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_trace_entry_type_llm_request() {
+        let entry = TraceEntryType::LlmRequest {
+            model: "gpt-4".to_string(),
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            cost: 0.005,
+        };
+
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains("llm_request"));
+        assert!(json.contains("gpt-4"));
+    }
+
+    #[test]
+    fn test_trace_entry_type_tool_call() {
+        let entry = TraceEntryType::ToolCall {
+            tool_name: "search".to_string(),
+            arguments: serde_json::json!({"query": "rust"}),
+        };
+
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains("tool_call"));
+        assert!(json.contains("search"));
+    }
+
+    #[test]
+    fn test_ws_message_ping_pong() {
+        let ping = WsMessage::Ping;
+        let pong = WsMessage::Pong;
+
+        let ping_json = serde_json::to_string(&ping).unwrap();
+        let pong_json = serde_json::to_string(&pong).unwrap();
+
+        assert!(ping_json.contains("Ping"));
+        assert!(pong_json.contains("Pong"));
+    }
+
+    #[test]
+    fn test_ws_message_request_recorded() {
+        let msg = WsMessage::RequestRecorded {
+            model: "claude-3".to_string(),
+            cost: 0.01,
+            tokens: 500,
+            latency_ms: 150.0,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("RequestRecorded"));
+        assert!(json.contains("claude-3"));
+    }
+
+    #[test]
+    fn test_session_message_serialization() {
+        let msg = SessionMessage {
+            id: "msg-1".to_string(),
+            session_id: "session-1".to_string(),
+            role: "user".to_string(),
+            content: "Hello!".to_string(),
+            timestamp: Utc::now(),
+            metadata: None,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: SessionMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg.id, deserialized.id);
+        assert_eq!(msg.content, deserialized.content);
+    }
+}

@@ -48,6 +48,9 @@ tracing-wasm = "0.2"
 # Error handling
 thiserror = "1.0"
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
 [features]
 default = ["csr"]
 csr = ["leptos/csr"]
