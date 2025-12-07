@@ -1,7 +1,8 @@
 # HyperAgent Roadmap - Advanced Observability & Multi-Provider
 
 **Created:** December 7, 2025  
-**Status:** Planning Phase  
+**Updated:** December 7, 2025  
+**Status:** Active Development  
 **Priority:** High
 
 ---
@@ -10,9 +11,8 @@
 
 This document outlines the next major features to implement in rust-ai-agents:
 
-1. **Prometheus Metrics** - Real-time observability with Grafana integration
+1. **Prometheus Metrics** - Real-time observability with Grafana integration ✅ COMPLETE
 2. **LlmProvider Trait** - Multi-provider abstraction (OpenAI, Claude, Gemini)
-3. **Plans & Quotas** - Business tier system for monetization
 
 ---
 
@@ -462,152 +462,19 @@ impl ModelRouter {
 
 ---
 
-## Phase 3: Plans & Quotas (Business Layer)
-
-### Goal
-Implement tiered usage system for monetization.
-
-### Database Schema
-
-```sql
--- Plans table
-CREATE TABLE plans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(50) NOT NULL UNIQUE,
-    display_name VARCHAR(100) NOT NULL,
-    monthly_token_quota BIGINT NOT NULL,
-    daily_token_limit BIGINT,
-    max_model_tier INTEGER DEFAULT 1,
-    priority INTEGER DEFAULT 0,
-    price_usd DECIMAL(10,2),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Default plans
-INSERT INTO plans (name, display_name, monthly_token_quota, daily_token_limit, max_model_tier, price_usd) VALUES
-('free', 'Free', 50000, 5000, 1, 0),
-('pro', 'Pro', 500000, 50000, 2, 29.99),
-('enterprise', 'Enterprise', 5000000, 500000, 3, 299.99);
-
--- User plans
-CREATE TABLE user_plans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(100) NOT NULL,
-    plan_id UUID REFERENCES plans(id),
-    tokens_used_this_month BIGINT DEFAULT 0,
-    renewal_date DATE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Model tiers
-CREATE TABLE model_tiers (
-    id SERIAL PRIMARY KEY,
-    model_name VARCHAR(100) NOT NULL,
-    tier INTEGER NOT NULL,
-    provider VARCHAR(50) NOT NULL
-);
-
-INSERT INTO model_tiers (model_name, tier, provider) VALUES
-('gpt-4o-mini', 1, 'openai'),
-('gpt-3.5-turbo', 1, 'openai'),
-('claude-3-5-haiku', 1, 'anthropic'),
-('gpt-4o', 2, 'openai'),
-('claude-3-5-sonnet', 2, 'anthropic'),
-('gpt-4-turbo', 3, 'openai'),
-('claude-3-opus', 3, 'anthropic');
-```
-
-### SQL Analytics Queries
-
-```sql
--- P50/P90/P99 latency by model and route (today)
-SELECT
-    route_context,
-    model_name,
-    percentile_disc(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
-    percentile_disc(0.9) WITHIN GROUP (ORDER BY latency_ms) AS p90_ms,
-    percentile_disc(0.99) WITHIN GROUP (ORDER BY latency_ms) AS p99_ms,
-    COUNT(*) AS calls
-FROM llm_usage_logs
-WHERE created_at >= CURRENT_DATE
-GROUP BY route_context, model_name
-ORDER BY p99_ms DESC;
-
--- Top 20 routes by cost (last 7 days)
-SELECT
-    route_context,
-    model_name,
-    COUNT(*) AS calls,
-    SUM(total_tokens) AS total_tokens,
-    ROUND(SUM(estimated_cost_usd)::numeric, 4) AS total_cost_usd,
-    ROUND(AVG(estimated_cost_usd)::numeric, 4) AS avg_cost_per_call
-FROM llm_usage_logs
-WHERE created_at >= NOW() - INTERVAL '7 days'
-GROUP BY route_context, model_name
-ORDER BY total_cost_usd DESC
-LIMIT 20;
-
--- Top 20 users by cost (last 7 days)
-SELECT
-    COALESCE(user_id, 'anonymous') AS user_id,
-    COUNT(*) AS calls,
-    SUM(total_tokens) AS total_tokens,
-    ROUND(SUM(estimated_cost_usd)::numeric, 4) AS total_cost_usd
-FROM llm_usage_logs
-WHERE created_at >= NOW() - INTERVAL '7 days'
-GROUP BY COALESCE(user_id, 'anonymous')
-ORDER BY total_cost_usd DESC
-LIMIT 20;
-
--- Cache efficiency by route
-SELECT
-    route_context,
-    COUNT(*) AS total_requests,
-    SUM(CASE WHEN cached THEN 1 ELSE 0 END) AS cached_requests,
-    ROUND(100.0 * SUM(CASE WHEN cached THEN 1 ELSE 0 END) / COUNT(*), 2) AS hit_rate_percent
-FROM llm_usage_logs
-GROUP BY route_context
-ORDER BY hit_rate_percent DESC;
-```
-
----
-
 ## Implementation Order
 
-### Step 1: Fix PR #36 (Current)
-```bash
-# Tests were updated, now push and merge
-git add -A
-git commit -m "fix: update tests for TraceEntryType serde format"
-git push
-gh pr checks 36 --watch
-gh pr merge 36 --squash --admin
-```
+### Step 1: Prometheus Metrics ✅ COMPLETE (PR #37)
+- Added `crates/monitoring/src/prometheus.rs`
+- Added `crates/providers/src/instrumented.rs`
+- Added `/metrics` endpoint to dashboard
+- Full documentation at `docs/prometheus-metrics.md`
 
-### Step 2: Prometheus Metrics
-```bash
-git checkout main && git pull
-git checkout -b feat/prometheus-metrics
-# Implement Phase 1
-cargo test --workspace
-git add -A && git commit -m "feat(monitoring): add Prometheus metrics integration"
-git push -u origin feat/prometheus-metrics
-gh pr create --title "feat(monitoring): Prometheus metrics" --body "..."
-```
-
-### Step 3: LlmProvider Trait
+### Step 2: LlmProvider Trait (Next)
 ```bash
 git checkout main && git pull
 git checkout -b feat/llm-provider-trait
 # Implement Phase 2
-```
-
-### Step 4: Plans & Quotas
-```bash
-git checkout main && git pull
-git checkout -b feat/plans-quotas
-# Implement Phase 3
 ```
 
 ---
@@ -679,11 +546,10 @@ After implementing all phases:
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Observability | Basic logs | Full Prometheus + Grafana |
+| Observability | Basic logs | Full Prometheus + Grafana ✅ |
 | Provider lock-in | OpenAI only | Multi-provider with fallback |
-| Cost visibility | Manual calculation | Real-time dashboards |
-| Latency tracking | None | P50/P90/P99 per route |
-| Monetization | None | Tiered plans ready |
+| Cost visibility | Manual calculation | Real-time dashboards ✅ |
+| Latency tracking | None | P50/P90/P99 per route ✅ |
 
 ---
 
