@@ -11,6 +11,8 @@ rust-ai-agents-core = { path = "../core" }
 rust-ai-agents-providers = { path = "../providers" }
 rust-ai-agents-tools = { path = "../tools" }
 rust-ai-agents-monitoring = { path = "../monitoring" }
+rust-ai-agents-encryption = { path = "../encryption", optional = true }
+base64 = { version = "0.22", optional = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -25,3 +27,7 @@ dashmap = "6.1"
 parking_lot = "0.12"
 futures = { workspace = true }
 regex = "1.10"
+
+[features]
+default = []
+encryption = ["rust-ai-agents-encryption", "base64"]
