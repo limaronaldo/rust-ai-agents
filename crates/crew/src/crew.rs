@@ -173,7 +173,6 @@ impl Crew {
         let start = std::time::Instant::now();
 
         // Phase 1: Wait for agent to START processing (leave Idle state)
-        let mut started_processing = false;
         loop {
             if start.elapsed() > timeout_duration {
                 return Ok(TaskResult::failure(
@@ -190,7 +189,6 @@ impl Crew {
             drop(state);
 
             if !is_idle {
-                started_processing = true;
                 tracing::debug!("Agent {} started processing task", agent_id);
                 break;
             }
@@ -211,7 +209,7 @@ impl Crew {
             let is_idle = matches!(state.status, AgentStatus::Idle);
             drop(state);
 
-            if is_idle && started_processing {
+            if is_idle {
                 tracing::debug!("Agent {} finished processing task", agent_id);
 
                 // Agent finished processing, check memory for response

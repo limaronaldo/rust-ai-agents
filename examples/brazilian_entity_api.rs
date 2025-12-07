@@ -188,7 +188,7 @@ struct InvestigationRequest {
     /// Limiar minimo de confianca (0.0 - 1.0)
     #[serde(default = "default_threshold")]
     #[schema(example = 0.7)]
-    threshold: f64,
+    pub _threshold: f64,
 
     /// Formato de saida: "full" ou "compact"
     #[serde(default = "default_format")]
@@ -354,7 +354,7 @@ impl AppState {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
-    fn increment_errors(&self) {
+    fn _increment_errors(&self) {
         self.error_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }

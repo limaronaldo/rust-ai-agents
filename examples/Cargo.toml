@@ -13,11 +13,13 @@ rust-ai-agents-agents = { path = "../crates/agents" }
 rust-ai-agents-crew = { path = "../crates/crew" }
 rust-ai-agents-monitoring = { path = "../crates/monitoring" }
 rust-ai-agents-data = { path = "../crates/data" }
+rust-ai-agents-mcp = { path = "../crates/mcp" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
 dotenvy = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = "1"
 # API dependencies
@@ -28,6 +30,7 @@ utoipa-swagger-ui = { version = "7", features = ["axum"] }
 uuid = { workspace = true }
 futures = { workspace = true }
 chrono = { workspace = true }
+rand = { workspace = true }
 
 [[example]]
 name = "simple_agent"
@@ -56,3 +59,11 @@ path = "data_investigator_agent.rs"
 [[example]]
 name = "benchmark"
 path = "benchmark.rs"
+
+[[example]]
+name = "mcp_integration"
+path = "mcp_integration.rs"
+
+[[example]]
+name = "mcp_server"
+path = "mcp_server.rs"

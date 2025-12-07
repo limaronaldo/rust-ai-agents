@@ -1,0 +1,46 @@
+[package]
+name = "rust-ai-agents-cache"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Semantic caching for rust-ai-agents with Redis/Valkey and in-memory backends"
+
+[dependencies]
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Tracing
+tracing = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# Hashing
+sha2 = "0.10"
+
+# LRU for in-memory cache
+lru = { workspace = true }
+parking_lot = "0.12"
+
+# Redis/Valkey (optional)
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }
+
+[features]
+default = ["memory"]
+memory = []
+redis = ["dep:redis"]
+full = ["memory", "redis"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

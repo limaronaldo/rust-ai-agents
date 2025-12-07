@@ -11,7 +11,11 @@ members = [
     "crates/data",
     "crates/wasm",
     "crates/dashboard",
-    "examples",
+    "crates/mcp",
+    "crates/workflow",
+    "crates/resilience",
+    "crates/cache",
+    "examples", "crates/github-ops",
 ]
 
 [workspace.package]
@@ -77,6 +81,9 @@ backoff = { version = "0.4", features = ["tokio"] }
 
 # UUID
 uuid = { version = "1.8", features = ["v4", "serde"] }
+
+# Random
+rand = "0.8"
 
 # LRU cache
 lru = "0.12"

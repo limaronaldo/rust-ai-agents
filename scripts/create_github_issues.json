@@ -1,0 +1,98 @@
+{
+  "milestone": {
+    "title": "v0.2.0 – MockBackend & Approvals",
+    "description": "MockBackend for deterministic testing + Human-in-the-loop approval system. Builds on existing LLMBackend trait and ToolSchema.dangerous flag.",
+    "due_on": "2025-12-31T23:59:59Z"
+  },
+  "labels": [
+    {
+      "name": "enhancement",
+      "color": "a2eeef",
+      "description": "New feature or request"
+    },
+    {
+      "name": "refactor",
+      "color": "d4c5f9",
+      "description": "Code refactoring"
+    },
+    {
+      "name": "audit",
+      "color": "c5def5",
+      "description": "Code audit or verification"
+    },
+    { "name": "testing", "color": "bfd4f2", "description": "Testing related" },
+    {
+      "name": "documentation",
+      "color": "0075ca",
+      "description": "Documentation improvements"
+    },
+    { "name": "core", "color": "5319e7", "description": "Core functionality" },
+    {
+      "name": "backend",
+      "color": "1d76db",
+      "description": "LLM backend/provider related"
+    },
+    {
+      "name": "safety",
+      "color": "d93f0b",
+      "description": "Safety and security features"
+    },
+    {
+      "name": "priority-high",
+      "color": "b60205",
+      "description": "High priority"
+    }
+  ],
+  "issues": [
+    {
+      "title": "feat: implement MockBackend for deterministic testing",
+      "labels": ["enhancement", "backend", "testing", "priority-high"],
+      "body_path": "scripts/issues/feat_mock_backend.md"
+    },
+    {
+      "title": "audit: verify engine.rs uses LLMBackend trait correctly",
+      "labels": ["audit", "core"],
+      "body_path": "scripts/issues/audit_engine_llmbackend.md"
+    },
+    {
+      "title": "feat: ApprovalConfig and ApprovalHandler for human-in-the-loop",
+      "labels": ["enhancement", "safety", "priority-high"],
+      "body_path": "scripts/issues/feat_approval_config.md"
+    },
+    {
+      "title": "feat: implement TerminalApprovalHandler for CLI",
+      "labels": ["enhancement", "safety"],
+      "body_path": "scripts/issues/feat_terminal_approval.md"
+    },
+    {
+      "title": "feat: implement TestApprovalHandler for automated tests",
+      "labels": ["enhancement", "testing"],
+      "body_path": "scripts/issues/feat_test_approval.md"
+    },
+    {
+      "title": "feat: integrate approvals into executor flow",
+      "labels": ["enhancement", "safety", "priority-high"],
+      "body_path": "scripts/issues/feat_approval_integration.md"
+    },
+    {
+      "title": "test: approval integration tests with TestApprovalHandler",
+      "labels": ["testing", "safety"],
+      "body_path": "scripts/issues/test_approval_integration.md"
+    },
+    {
+      "title": "test: engine integration tests with MockBackend",
+      "labels": ["testing", "backend"],
+      "body_path": "scripts/issues/test_engine_mock.md"
+    },
+    {
+      "title": "docs: document LLM Backends and MockBackend",
+      "labels": ["documentation", "backend"],
+      "body_path": "scripts/issues/docs_llm_backend.md"
+    },
+    {
+      "title": "docs: document Human-in-the-loop & Approvals",
+      "labels": ["documentation", "safety"],
+      "body_path": "scripts/issues/docs_approval.md"
+    }
+  ]
+}

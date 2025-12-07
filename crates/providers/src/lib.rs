@@ -27,6 +27,7 @@
 
 pub mod anthropic;
 pub mod backend;
+pub mod mock;
 pub mod openai;
 pub mod openrouter;
 pub mod rate_limit;
@@ -37,6 +38,7 @@ pub use anthropic::{AnthropicProvider, ClaudeModel};
 pub use backend::{
     InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
 };
+pub use mock::{MessageMatcher, MockBackend, MockConfig, MockResponse, RecordedCall};
 pub use openai::OpenAIProvider;
 pub use openrouter::OpenRouterProvider;
 pub use rate_limit::{GovernorRateLimiter, RateLimitConfig};

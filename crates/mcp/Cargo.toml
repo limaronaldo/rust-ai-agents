@@ -1,0 +1,27 @@
+[package]
+name = "rust-ai-agents-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Model Context Protocol (MCP) support for rust-ai-agents"
+
+[dependencies]
+rust-ai-agents-core = { path = "../core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+thiserror = "1.0"
+futures = { workspace = true }
+parking_lot = "0.12"
+
+# For stdio transport
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# For SSE transport
+reqwest = { workspace = true }
+eventsource-client = "0.13"

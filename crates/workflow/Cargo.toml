@@ -1,0 +1,25 @@
+[package]
+name = "rust-ai-agents-workflow"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "YAML-based workflow DSL for rust-ai-agents"
+
+[dependencies]
+rust-ai-agents-core = { path = "../core" }
+rust-ai-agents-agents = { path = "../agents" }
+rust-ai-agents-crew = { path = "../crew" }
+rust-ai-agents-providers = { path = "../providers" }
+rust-ai-agents-tools = { path = "../tools" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+async-trait = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+regex-lite = "0.1"
+futures = { workspace = true }

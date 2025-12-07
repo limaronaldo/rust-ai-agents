@@ -21,7 +21,7 @@
 //! ```
 
 use rust_ai_agents_agents::*;
-use rust_ai_agents_core::*;
+use rust_ai_agents_core::{AgentConfig, *};
 use rust_ai_agents_data::types::{DataRecord, DataSchema, DataSource, FieldValue};
 use rust_ai_agents_providers::*;
 use rust_ai_agents_tools::{CrossReferenceEntityTool, ToolRegistry};

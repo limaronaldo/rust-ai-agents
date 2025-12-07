@@ -1,9 +1,9 @@
 //! Multi-agent crew example with task orchestration
 
-use rust_ai_agents_core::*;
-use rust_ai_agents_providers::*;
 use rust_ai_agents_agents::*;
+use rust_ai_agents_core::{AgentConfig, *};
 use rust_ai_agents_crew::*;
+use rust_ai_agents_providers::*;
 use rust_ai_agents_tools::*;
 
 use std::sync::Arc;
@@ -24,8 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = Arc::new(registry);
 
     // Create LLM backend
-    let api_key = std::env::var("OPENROUTER_API_KEY")
-        .expect("OPENROUTER_API_KEY must be set");
+    let api_key = std::env::var("OPENROUTER_API_KEY").expect("OPENROUTER_API_KEY must be set");
 
     let backend = Arc::new(OpenRouterProvider::new(
         api_key,
@@ -39,44 +38,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_capabilities(vec![Capability::WebSearch, Capability::Analysis])
         .with_system_prompt(
             "You are a research specialist. Your job is to gather information \
-             and provide well-researched insights."
+             and provide well-researched insights.",
         );
 
     let analyst_config = AgentConfig::new("Data Analyst", AgentRole::Executor)
         .with_capabilities(vec![Capability::Analysis, Capability::Prediction])
         .with_system_prompt(
             "You are a data analyst. You analyze data and provide insights \
-             based on research findings."
+             based on research findings.",
         );
 
     let writer_config = AgentConfig::new("Content Writer", AgentRole::Writer)
         .with_capabilities(vec![Capability::ContentGeneration])
         .with_system_prompt(
             "You are a content writer. You create clear, engaging content \
-             based on research and analysis."
+             based on research and analysis.",
         );
 
     // Spawn agents
     println!("🤖 Spawning agents...");
-    let researcher_id = engine.spawn_agent(
-        researcher_config.clone(),
-        registry.clone(),
-        backend.clone(),
-    ).await?;
+    let researcher_id = engine
+        .spawn_agent(researcher_config.clone(), registry.clone(), backend.clone())
+        .await?;
     println!("   ✅ Researcher spawned: {}", researcher_id);
 
-    let analyst_id = engine.spawn_agent(
-        analyst_config.clone(),
-        registry.clone(),
-        backend.clone(),
-    ).await?;
+    let analyst_id = engine
+        .spawn_agent(analyst_config.clone(), registry.clone(), backend.clone())
+        .await?;
     println!("   ✅ Analyst spawned: {}", analyst_id);
 
-    let writer_id = engine.spawn_agent(
-        writer_config.clone(),
-        registry.clone(),
-        backend.clone(),
-    ).await?;
+    let writer_id = engine
+        .spawn_agent(writer_config.clone(), registry.clone(), backend.clone())
+        .await?;
     println!("   ✅ Writer spawned: {}", writer_id);
 
     // Create crew
@@ -123,7 +116,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📊 Results: {} tasks completed\n", results.len());
 
     for (idx, result) in results.iter().enumerate() {
-        println!("Task {}: {}", idx + 1, if result.success { "✅ Success" } else { "❌ Failed" });
+        println!(
+            "Task {}: {}",
+            idx + 1,
+            if result.success {
+                "✅ Success"
+            } else {
+                "❌ Failed"
+            }
+        );
     }
 
     // Print crew stats

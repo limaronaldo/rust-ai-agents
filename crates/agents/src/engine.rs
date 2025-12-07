@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time::timeout;
 use tracing::{debug, debug_span, error, info, instrument, warn, Instrument};
 
+use rust_ai_agents_core::types::PlanningMode;
 use rust_ai_agents_core::*;
 use rust_ai_agents_monitoring::CostTracker;
 use rust_ai_agents_providers::*;
@@ -20,6 +21,7 @@ use rust_ai_agents_tools::ToolRegistry;
 
 use crate::executor::ToolExecutor;
 use crate::memory::AgentMemory;
+use crate::planning::{check_stop_words, PlanGenerator, StepExecutionContext};
 
 /// Agent engine managing multiple agents
 #[derive(Clone)]
@@ -231,9 +233,10 @@ impl AgentEngine {
     }
 
     /// Process a single message with ReACT loop (Reason -> Act -> Observe)
+    /// Supports planning mode for structured task execution
     #[instrument(
         skip(state, memory, tool_registry, backend, executor, metrics, cost_tracker, message),
-        fields(agent_id = %config.id, max_iterations = config.max_iterations)
+        fields(agent_id = %config.id, max_iterations = config.max_iterations, planning_mode = ?config.planning_mode)
     )]
     async fn process_message(
         config: &AgentConfig,
@@ -258,7 +261,23 @@ impl AgentEngine {
         // Add message to memory
         memory.add_message(message.clone()).await?;
 
-        // ReACT Loop: Reason -> Act -> Observe
+        // Check if planning mode is enabled
+        if config.planning_mode.is_enabled() {
+            return Self::process_with_planning(
+                config,
+                state,
+                memory,
+                tool_registry,
+                backend,
+                executor,
+                metrics,
+                cost_tracker,
+                message,
+            )
+            .await;
+        }
+
+        // ReACT Loop: Reason -> Act -> Observe (no planning)
         let mut iteration = 0;
         let max_iterations = config.max_iterations;
 
@@ -415,6 +434,27 @@ impl AgentEngine {
 
             // 4. RESPOND: Agent has final answer
             if !inference.content.is_empty() {
+                // Check for stop words
+                if !config.stop_words.is_empty() {
+                    if let Some(stop_word) =
+                        check_stop_words(&inference.content, &config.stop_words)
+                    {
+                        info!(stop_word = %stop_word, "Stop word detected, terminating");
+                        let mut state_write = state.write().await;
+                        state_write.status = AgentStatus::StoppedByStopWord;
+                        drop(state_write);
+
+                        let response = Message::new(
+                            config.id.clone(),
+                            message.from.clone(),
+                            Content::Text(inference.content.clone()),
+                        );
+                        memory.add_message(response.clone()).await?;
+                        responses.push(response);
+                        return Ok(responses);
+                    }
+                }
+
                 let response = Message::new(
                     config.id.clone(),
                     message.from.clone(),
@@ -447,6 +487,328 @@ impl AgentEngine {
         }
 
         Ok(responses)
+    }
+
+    /// Process message with planning mode enabled
+    #[instrument(
+        skip(state, memory, tool_registry, backend, executor, metrics, cost_tracker, message),
+        fields(agent_id = %config.id, planning_mode = ?config.planning_mode)
+    )]
+    async fn process_with_planning(
+        config: &AgentConfig,
+        state: &Arc<RwLock<AgentState>>,
+        memory: &Arc<AgentMemory>,
+        tool_registry: &Arc<ToolRegistry>,
+        backend: &Arc<dyn LLMBackend>,
+        executor: &ToolExecutor,
+        metrics: &Arc<EngineMetrics>,
+        cost_tracker: Option<&Arc<CostTracker>>,
+        message: Message,
+    ) -> Result<Vec<Message>, AgentError> {
+        let mut responses = Vec::new();
+
+        // Extract goal from message
+        let goal = match &message.content {
+            Content::Text(text) => text.clone(),
+            _ => {
+                return Err(AgentError::ProcessingError(
+                    "Planning requires text message".into(),
+                ))
+            }
+        };
+
+        // 1. PLANNING PHASE: Generate execution plan
+        {
+            let mut state_write = state.write().await;
+            state_write.status = AgentStatus::Planning;
+        }
+
+        info!(goal = %goal, "Generating execution plan");
+
+        let tool_schemas = tool_registry.list_schemas();
+        let planning_prompt = PlanGenerator::create_planning_prompt(&goal, &tool_schemas);
+
+        let plan_messages = vec![
+            config
+                .system_prompt
+                .as_ref()
+                .map(|s| LLMMessage::system(s))
+                .unwrap_or_else(|| {
+                    LLMMessage::system("You are a planning agent. Create detailed execution plans.")
+                }),
+            LLMMessage::user(&planning_prompt),
+        ];
+
+        let infer_start = std::time::Instant::now();
+        let plan_inference = backend
+            .infer(&plan_messages, &[], config.temperature)
+            .await?;
+        let infer_latency_ms = infer_start.elapsed().as_secs_f64() * 1000.0;
+
+        // Record cost for planning
+        if let Some(tracker) = cost_tracker {
+            let model_info = backend.model_info();
+            tracker.record_request_detailed(
+                &model_info.model,
+                plan_inference.token_usage.prompt_tokens as u64,
+                plan_inference.token_usage.completion_tokens as u64,
+                plan_inference.token_usage.cached_tokens.unwrap_or(0) as u64,
+                infer_latency_ms,
+                Some(config.id.0.as_str()),
+                true,
+            );
+        }
+
+        // Parse the plan
+        let mut plan = match PlanGenerator::parse_plan(&goal, &plan_inference.content) {
+            Ok(p) => {
+                info!(steps = p.steps.len(), "Plan generated successfully");
+                p
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to parse plan, returning raw response");
+                // Return the LLM response directly instead of recursing
+                let response = Message::new(
+                    config.id.clone(),
+                    message.from.clone(),
+                    Content::Text(plan_inference.content.clone()),
+                );
+                memory.add_message(response.clone()).await?;
+
+                let mut state_write = state.write().await;
+                state_write.status = AgentStatus::Idle;
+                drop(state_write);
+
+                return Ok(vec![response]);
+            }
+        };
+
+        // Store plan in state
+        {
+            let mut state_write = state.write().await;
+            state_write.set_plan(plan.clone());
+            state_write.status = AgentStatus::ExecutingPlan;
+        }
+
+        // 2. EXECUTION PHASE: Execute each step
+        while plan.advance() {
+            let step = plan.current_step().unwrap().clone();
+
+            info!(
+                step = step.step_number,
+                total = plan.steps.len(),
+                description = %step.description,
+                "Executing plan step"
+            );
+
+            let step_ctx = StepExecutionContext::from_step(&step, &plan);
+
+            // Create messages for step execution
+            let mut step_messages = vec![];
+
+            if let Some(sys_prompt) = &config.system_prompt {
+                step_messages.push(LLMMessage::system(sys_prompt));
+            }
+            step_messages.push(LLMMessage::user(&step_ctx.prompt));
+
+            // Execute step with ReACT loop
+            let step_result = Self::execute_step(
+                config,
+                state,
+                memory,
+                tool_registry,
+                backend,
+                executor,
+                metrics,
+                cost_tracker,
+                step_messages,
+            )
+            .await?;
+
+            // Mark step completed
+            plan.mark_current_completed(&step_result);
+
+            // Update state with progress
+            {
+                let mut state_write = state.write().await;
+                state_write.current_plan = Some(plan.clone());
+            }
+
+            // Check for stop words in step result
+            if !config.stop_words.is_empty() {
+                if let Some(stop_word) = check_stop_words(&step_result, &config.stop_words) {
+                    info!(stop_word = %stop_word, "Stop word detected during plan execution");
+                    let mut state_write = state.write().await;
+                    state_write.status = AgentStatus::StoppedByStopWord;
+                    break;
+                }
+            }
+
+            // Adaptive re-planning
+            if config.planning_mode == PlanningMode::Adaptive && !plan.is_complete() {
+                let replan_prompt = PlanGenerator::create_replan_prompt(&plan, &step_result);
+                let replan_messages = vec![
+                    LLMMessage::system(
+                        "You are a planning agent. Review progress and adjust the plan if needed.",
+                    ),
+                    LLMMessage::user(&replan_prompt),
+                ];
+
+                if let Ok(replan_inference) = backend
+                    .infer(&replan_messages, &[], config.temperature)
+                    .await
+                {
+                    if let Ok(modified) =
+                        PlanGenerator::apply_replan(&mut plan, &replan_inference.content)
+                    {
+                        if modified {
+                            info!("Plan was modified based on step results");
+                            let mut state_write = state.write().await;
+                            state_write.current_plan = Some(plan.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. COMPLETION: Generate final response
+        plan.completed = true;
+        plan.success = plan.steps.iter().all(|s| s.completed);
+
+        let summary = format!(
+            "Plan completed. Goal: {}\nSteps executed: {}/{}\nSuccess: {}",
+            plan.goal,
+            plan.steps.iter().filter(|s| s.completed).count(),
+            plan.steps.len(),
+            plan.success
+        );
+
+        let response = Message::new(
+            config.id.clone(),
+            message.from.clone(),
+            Content::Text(summary),
+        );
+
+        memory.add_message(response.clone()).await?;
+        responses.push(response);
+
+        // Update final state
+        {
+            let mut state_write = state.write().await;
+            state_write.status = AgentStatus::Idle;
+            state_write.current_plan = Some(plan);
+        }
+
+        Ok(responses)
+    }
+
+    /// Execute a single step using ReACT loop
+    async fn execute_step(
+        config: &AgentConfig,
+        state: &Arc<RwLock<AgentState>>,
+        memory: &Arc<AgentMemory>,
+        tool_registry: &Arc<ToolRegistry>,
+        backend: &Arc<dyn LLMBackend>,
+        executor: &ToolExecutor,
+        metrics: &Arc<EngineMetrics>,
+        cost_tracker: Option<&Arc<CostTracker>>,
+        mut messages: Vec<LLMMessage>,
+    ) -> Result<String, AgentError> {
+        let tool_schemas = tool_registry.list_schemas();
+        let mut iteration = 0;
+        let max_iterations = config.max_iterations.min(5); // Limit per-step iterations
+
+        loop {
+            iteration += 1;
+            if iteration > max_iterations {
+                return Err(AgentError::MaxIterationsExceeded);
+            }
+
+            let infer_start = std::time::Instant::now();
+            let inference = backend
+                .infer(&messages, &tool_schemas, config.temperature)
+                .await?;
+            let infer_latency_ms = infer_start.elapsed().as_secs_f64() * 1000.0;
+
+            if let Some(tracker) = cost_tracker {
+                let model_info = backend.model_info();
+                tracker.record_request_detailed(
+                    &model_info.model,
+                    inference.token_usage.prompt_tokens as u64,
+                    inference.token_usage.completion_tokens as u64,
+                    inference.token_usage.cached_tokens.unwrap_or(0) as u64,
+                    infer_latency_ms,
+                    Some(config.id.0.as_str()),
+                    true,
+                );
+            }
+
+            // Handle tool calls
+            if let Some(tool_calls) = &inference.tool_calls {
+                if !tool_calls.is_empty() {
+                    {
+                        let mut state_write = state.write().await;
+                        state_write.status = AgentStatus::ExecutingTool;
+                    }
+
+                    metrics.total_tool_calls.fetch_add(
+                        tool_calls.len() as u64,
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+
+                    // Store tool call
+                    let tool_call_msg = Message::new(
+                        config.id.clone(),
+                        config.id.clone(),
+                        Content::ToolCall(tool_calls.clone()),
+                    );
+                    memory.add_message(tool_call_msg).await?;
+
+                    // Execute tools
+                    let results = executor
+                        .execute_tools(tool_calls, tool_registry, &config.id)
+                        .await;
+
+                    // Add tool results to messages
+                    messages.push(LLMMessage::assistant_with_tools(tool_calls.clone()));
+                    for result in &results {
+                        let content = if result.success {
+                            serde_json::to_string_pretty(&result.data).unwrap_or_default()
+                        } else {
+                            result.error.clone().unwrap_or_default()
+                        };
+                        messages.push(LLMMessage::tool(
+                            result.call_id.clone(),
+                            "tool_result".to_string(),
+                            content,
+                        ));
+                    }
+
+                    // Store results
+                    let result_msg = Message::new(
+                        AgentId::new("system"),
+                        config.id.clone(),
+                        Content::ToolResult(results),
+                    );
+                    memory.add_message(result_msg).await?;
+
+                    {
+                        let mut state_write = state.write().await;
+                        state_write.status = AgentStatus::ExecutingPlan;
+                    }
+
+                    continue;
+                }
+            }
+
+            // Return response
+            if !inference.content.is_empty() {
+                return Ok(inference.content);
+            }
+
+            // Empty response
+            return Ok("Step completed without explicit output".to_string());
+        }
     }
 
     /// Send a message to an agent

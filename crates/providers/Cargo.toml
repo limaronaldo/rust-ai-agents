@@ -24,3 +24,6 @@ tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 pin-project-lite = { workspace = true }
 regex = "1.10"
+uuid = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }

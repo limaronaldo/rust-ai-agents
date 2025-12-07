@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rust_ai_agents_agents::*;
-use rust_ai_agents_core::*;
+use rust_ai_agents_core::{AgentConfig, *};
 use rust_ai_agents_monitoring::CostTracker;
 use rust_ai_agents_providers::{InferenceOutput, LLMBackend, ModelInfo, TokenUsage};
 use rust_ai_agents_tools::ToolRegistry;
@@ -97,10 +97,7 @@ async fn main() -> anyhow::Result<()> {
     let start = Instant::now();
     for agent_id in &agent_ids {
         for _ in 0..messages_per_agent {
-            engine.send_message(Message::user(
-                agent_id.clone(),
-                "benchmark ping",
-            ))?;
+            engine.send_message(Message::user(agent_id.clone(), "benchmark ping"))?;
         }
     }
 
@@ -136,7 +133,10 @@ async fn main() -> anyhow::Result<()> {
         "Avg latency: {:.2} ms (CostTracker)",
         cost_stats.avg_latency_ms
     );
-    println!("Tokens in/out: {}/{}", cost_stats.total_input_tokens, cost_stats.total_output_tokens);
+    println!(
+        "Tokens in/out: {}/{}",
+        cost_stats.total_input_tokens, cost_stats.total_output_tokens
+    );
     println!("Total cost:  ${:.6}", cost_stats.total_cost);
 
     engine.shutdown().await;
