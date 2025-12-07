@@ -31,6 +31,7 @@
 
 pub mod anthropic;
 pub mod backend;
+pub mod instrumented;
 pub mod mock;
 pub mod openai;
 pub mod openrouter;
@@ -42,6 +43,7 @@ pub use anthropic::{AnthropicProvider, ClaudeModel};
 pub use backend::{
     InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
 };
+pub use instrumented::InstrumentedBackend;
 pub use mock::{MessageMatcher, MockBackend, MockConfig, MockResponse, RecordedCall};
 pub use openai::OpenAIProvider;
 pub use openrouter::OpenRouterProvider;

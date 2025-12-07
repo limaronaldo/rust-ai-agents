@@ -8,6 +8,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+// Import PrometheusHandle for metrics endpoint
+use metrics_exporter_prometheus::PrometheusHandle;
+
 /// Agent status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentStatus {
@@ -140,6 +143,8 @@ pub enum WsMessage {
 pub struct DashboardState {
     /// Cost tracker reference
     pub cost_tracker: Arc<CostTracker>,
+    /// Prometheus metrics handle for /metrics endpoint
+    pub prometheus_handle: PrometheusHandle,
     /// Active agents
     agents: RwLock<HashMap<String, AgentStatus>>,
     /// Sessions
@@ -157,12 +162,13 @@ pub struct DashboardState {
 }
 
 impl DashboardState {
-    /// Create new dashboard state
-    pub fn new(cost_tracker: Arc<CostTracker>) -> Self {
+    /// Create new dashboard state with Prometheus handle
+    pub fn new(cost_tracker: Arc<CostTracker>, prometheus_handle: PrometheusHandle) -> Self {
         let (broadcast_tx, _) = broadcast::channel(1024);
 
         Self {
             cost_tracker,
+            prometheus_handle,
             agents: RwLock::new(HashMap::new()),
             sessions: RwLock::new(HashMap::new()),
             session_messages: RwLock::new(HashMap::new()),

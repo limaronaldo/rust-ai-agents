@@ -135,3 +135,11 @@ pub async fn ws_handler(
 pub async fn health_handler() -> &'static str {
     "OK"
 }
+
+/// Prometheus metrics endpoint
+///
+/// Returns metrics in Prometheus text format for scraping.
+/// This endpoint is separate from the JSON metrics API to support Prometheus scraping.
+pub async fn prometheus_metrics_handler(State(state): State<Arc<DashboardState>>) -> String {
+    state.prometheus_handle.render()
+}

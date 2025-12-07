@@ -14,9 +14,9 @@ use tracing::info;
 
 use crate::handlers::{
     agent_handler, agents_handler, health_handler, index_handler, metrics_handler,
-    restart_agent_handler, session_handler, session_messages_handler, session_traces_handler,
-    sessions_handler, start_agent_handler, stats_handler, stop_agent_handler, studio_handler,
-    traces_handler, ws_handler,
+    prometheus_metrics_handler, restart_agent_handler, session_handler, session_messages_handler,
+    session_traces_handler, sessions_handler, start_agent_handler, stats_handler,
+    stop_agent_handler, studio_handler, traces_handler, ws_handler,
 };
 use crate::state::DashboardState;
 
@@ -26,10 +26,13 @@ pub struct DashboardServer {
 }
 
 impl DashboardServer {
-    /// Create a new dashboard server
+    /// Create a new dashboard server with Prometheus metrics
     pub fn new(cost_tracker: Arc<CostTracker>) -> Self {
+        // Initialize Prometheus metrics recorder
+        let prometheus_handle = rust_ai_agents_monitoring::init_prometheus();
+
         Self {
-            state: Arc::new(DashboardState::new(cost_tracker)),
+            state: Arc::new(DashboardState::new(cost_tracker, prometheus_handle)),
         }
     }
 
@@ -69,6 +72,8 @@ impl DashboardServer {
             .route("/api/agents/:id/restart", post(restart_agent_handler))
             // Health
             .route("/health", get(health_handler))
+            // Prometheus metrics endpoint
+            .route("/metrics", get(prometheus_metrics_handler))
             // Serve static files for studio WASM
             .nest_service(
                 "/studio/pkg",
