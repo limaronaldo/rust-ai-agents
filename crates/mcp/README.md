@@ -78,6 +78,37 @@ let server = McpServer::builder()
 server.run_stdio().await?;
 ```
 
+### Server: HTTP/SSE Transport
+
+For web-based clients, use the SSE transport:
+
+```rust
+use rust_ai_agents_mcp::{McpServer, SseServerConfig};
+
+let server = McpServer::builder()
+    .name("my-sse-server")
+    .version("1.0.0")
+    .add_tool(MyTool)
+    .build();
+
+// Configure SSE server
+let config = SseServerConfig {
+    host: "127.0.0.1".to_string(),
+    port: 3000,
+    sse_path: "/sse".to_string(),
+    message_path: "/message".to_string(),
+    enable_cors: true,
+    keep_alive_secs: 30,
+};
+
+// Run HTTP server (blocks until shutdown)
+server.run_sse(config).await?;
+```
+
+Endpoints:
+- `GET /sse` - SSE stream for server-to-client messages
+- `POST /message?sessionId=xxx` - JSON-RPC requests from client
+
 ## Using with Claude Desktop
 
 1. Build your MCP server:
@@ -208,13 +239,17 @@ pub trait PromptHandler: Send + Sync {
 
 See the examples directory:
 
-- `examples/mcp_server.rs` - Complete MCP server with demo tools
+- `examples/mcp_server.rs` - MCP server with STDIO transport (for Claude Desktop)
+- `examples/mcp_sse_server.rs` - MCP server with HTTP/SSE transport (for web clients)
 - `examples/mcp_integration.rs` - Client connecting to external MCP servers
 
 Run examples:
 ```bash
-# Server example
+# STDIO server example (for Claude Desktop)
 cargo run --example mcp_server
+
+# SSE server example (HTTP on port 3000)
+cargo run --example mcp_sse_server
 
 # Client example (requires Node.js/npx)
 cargo run --example mcp_integration

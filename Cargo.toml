@@ -82,6 +82,9 @@ backoff = { version = "0.4", features = ["tokio"] }
 # UUID
 uuid = { version = "1.8", features = ["v4", "serde"] }
 
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+
 # Random
 rand = "0.8"
 
