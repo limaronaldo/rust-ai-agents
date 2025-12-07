@@ -338,6 +338,8 @@ mod tests {
     #[test]
     fn test_init_prometheus() {
         let handle = get_handle();
+        // Record a metric to ensure there's something to render
+        record_llm_tokens("init_test", "test_model", 1, 1);
         let metrics = handle.render();
         assert!(!metrics.is_empty());
     }
