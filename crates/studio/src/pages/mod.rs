@@ -1,6 +1,7 @@
 //! Page components
 
 mod agents;
+mod chat;
 mod home;
 mod metrics;
 mod not_found;
@@ -9,6 +10,7 @@ mod settings;
 mod traces;
 
 pub use agents::*;
+pub use chat::*;
 pub use home::*;
 pub use metrics::*;
 pub use not_found::*;

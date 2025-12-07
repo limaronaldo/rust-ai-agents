@@ -36,6 +36,11 @@ web-sys = { version = "0.3", features = [
     "ErrorEvent",
     "Location",
     "Storage",
+    "KeyboardEvent",
+    "MouseEvent",
+    "ReadableStream",
+    "ReadableStreamDefaultReader",
+    "TextDecoder",
 ] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
