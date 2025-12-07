@@ -1,0 +1,50 @@
+[package]
+name = "dioxus-ai"
+version = "0.1.0"
+edition = "2021"
+description = "AI hooks for Dioxus - chat, completions, and streaming"
+license = "Apache-2.0"
+authors = ["Ronaldo Lima"]
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+keywords = ["ai", "dioxus", "llm", "chat", "wasm"]
+categories = ["api-bindings", "wasm", "web-programming"]
+
+[dependencies]
+# Shared LLM client logic
+rust-ai-agents-llm-client = { path = "../llm-client" }
+
+# Dioxus framework
+dioxus = { version = "0.6", features = ["web"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Futures
+futures = "0.3"
+
+# Web APIs (for WASM)
+web-sys = { version = "0.3", features = [
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "ReadableStream",
+    "ReadableStreamDefaultReader",
+    "Window",
+] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Error handling
+thiserror = "1.0"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
