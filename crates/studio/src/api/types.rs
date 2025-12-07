@@ -191,7 +191,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&entry).unwrap();
-        assert!(json.contains("llm_request"));
+        // Uses #[serde(tag = "type", content = "data")] so variant is PascalCase
+        assert!(json.contains("LlmRequest"));
         assert!(json.contains("gpt-4"));
     }
 
@@ -203,7 +204,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&entry).unwrap();
-        assert!(json.contains("tool_call"));
+        // Uses #[serde(tag = "type", content = "data")] so variant is PascalCase
+        assert!(json.contains("ToolCall"));
         assert!(json.contains("search"));
     }
 
