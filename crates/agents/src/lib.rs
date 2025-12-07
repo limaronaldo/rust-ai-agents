@@ -32,6 +32,8 @@ pub mod approvals;
 pub mod checkpoint;
 pub mod discovery;
 pub mod durable;
+#[cfg(feature = "encryption")]
+pub mod encrypted_stores;
 pub mod engine;
 #[cfg(test)]
 mod engine_integration_tests;
@@ -54,6 +56,8 @@ pub use approvals::*;
 pub use checkpoint::*;
 pub use discovery::*;
 pub use durable::*;
+#[cfg(feature = "encryption")]
+pub use encrypted_stores::*;
 pub use engine::*;
 pub use executor::*;
 pub use factory::*;
