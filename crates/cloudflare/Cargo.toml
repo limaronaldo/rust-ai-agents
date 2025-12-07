@@ -1,0 +1,44 @@
+[package]
+name = "rust-ai-agents-cloudflare"
+version = "0.1.0"
+edition = "2021"
+description = "Cloudflare Workers support for Rust AI Agents"
+license = "Apache-2.0"
+authors = ["Ronaldo Lima"]
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+keywords = ["ai", "agents", "cloudflare", "workers", "wasm"]
+categories = ["wasm", "web-programming"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Cloudflare Workers SDK
+worker = "0.4"
+
+# Shared LLM client logic
+rust-ai-agents-llm-client = { path = "../llm-client" }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Async
+futures = "0.3"
+
+# Error handling
+thiserror = "1.0"
+
+# UUID for request IDs (with JS feature for WASM)
+uuid = { version = "1.8", features = ["v4", "serde", "js"] }
+
+# Random for WASM
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
