@@ -17,6 +17,9 @@ pub enum McpError {
     #[error("Tool not found: {0}")]
     ToolNotFound(String),
 
+    #[error("Resource not found: {0}")]
+    ResourceNotFound(String),
+
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 

@@ -34,6 +34,7 @@ pub mod client;
 pub mod error;
 pub mod protocol;
 pub mod server;
+pub mod session_resources;
 pub mod sse_server;
 pub mod transport;
 
@@ -48,6 +49,10 @@ pub use protocol::*;
 pub use server::{
     AsyncFnTool, FnTool, McpServer, McpServerBuilder, PromptContent, PromptHandler, PromptMessage,
     ResourceHandler, ServerConfig, ToolHandler,
+};
+pub use session_resources::{
+    MemorySessionStoreAdapter, MemoryTraceStoreAdapter, SessionMetadata, SessionResourceHandler,
+    SessionStoreRead, TraceMetadata, TraceResourceHandler, TraceStoreRead,
 };
 pub use sse_server::SseServerConfig;
 pub use transport::{McpTransport, SseTransport, StdioTransport};
