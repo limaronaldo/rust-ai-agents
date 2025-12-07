@@ -157,10 +157,7 @@ impl WorkflowParser {
         // Build graph (reverse direction: dependency -> dependent)
         for task in &workflow.tasks {
             for dep in &task.depends_on {
-                graph
-                    .entry(dep.as_str())
-                    .or_default()
-                    .push(&task.id);
+                graph.entry(dep.as_str()).or_default().push(&task.id);
                 *in_degree.entry(&task.id).or_insert(0) += 1;
             }
         }

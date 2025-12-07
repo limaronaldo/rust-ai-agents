@@ -783,10 +783,9 @@ impl<S: VectorStore, E: Embedder> SemanticMemory<S, E> {
 
         let mut deleted = 0;
         for result in results {
-            if result.score >= threshold
-                && self.rag.store.delete(&result.document.id).await? {
-                    deleted += 1;
-                }
+            if result.score >= threshold && self.rag.store.delete(&result.document.id).await? {
+                deleted += 1;
+            }
         }
 
         Ok(deleted)

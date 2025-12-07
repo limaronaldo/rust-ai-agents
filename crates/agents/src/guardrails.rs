@@ -42,8 +42,9 @@ use tokio::time::timeout;
 use tracing::{debug, error, warn};
 
 /// Severity level of a guardrail violation
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum ViolationSeverity {
     /// Informational - logged but doesn't block
     Info,
@@ -55,7 +56,6 @@ pub enum ViolationSeverity {
     /// Critical - triggers tripwire, halts execution immediately
     Critical,
 }
-
 
 /// A violation detected by a guardrail
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -422,7 +422,10 @@ impl Graph {
 
             // Save checkpoint if enabled
             if self.config.checkpointing
-                && state.metadata.iterations.is_multiple_of(self.config.checkpoint_interval)
+                && state
+                    .metadata
+                    .iterations
+                    .is_multiple_of(self.config.checkpoint_interval)
             {
                 if let Some(store) = &self.checkpoint_store {
                     let checkpoint = Checkpoint {
