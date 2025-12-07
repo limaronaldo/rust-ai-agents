@@ -30,6 +30,8 @@
 //! ```
 
 pub mod anthropic;
+#[cfg(feature = "audit")]
+pub mod audited;
 pub mod backend;
 pub mod instrumented;
 pub mod mock;
@@ -41,6 +43,8 @@ pub mod router;
 pub mod structured;
 
 pub use anthropic::{AnthropicProvider, ClaudeModel};
+#[cfg(feature = "audit")]
+pub use audited::AuditedBackend;
 pub use backend::{
     InferenceOutput, LLMBackend, ModelInfo, RateLimiter, StreamEvent, StreamResponse, TokenUsage,
 };

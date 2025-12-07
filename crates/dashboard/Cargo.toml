@@ -26,6 +26,9 @@ rust-ai-agents-monitoring = { path = "../monitoring" }
 # Agents crate for real data integration
 rust-ai-agents-agents = { path = "../agents", optional = true }
 
+# Audit logging
+rust-ai-agents-audit = { path = "../audit", optional = true }
+
 # Providers crate for LLM streaming
 rust-ai-agents-providers = { path = "../providers", optional = true }
 
@@ -58,3 +61,4 @@ metrics-exporter-prometheus = "0.15"
 default = []
 agents = ["rust-ai-agents-agents"]
 streaming = ["rust-ai-agents-providers", "rust-ai-agents-core"]
+audit = ["rust-ai-agents-audit"]

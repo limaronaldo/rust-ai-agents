@@ -12,6 +12,7 @@ rust-ai-agents-providers = { path = "../providers" }
 rust-ai-agents-tools = { path = "../tools" }
 rust-ai-agents-monitoring = { path = "../monitoring" }
 rust-ai-agents-encryption = { path = "../encryption", optional = true }
+rust-ai-agents-audit = { path = "../audit", optional = true }
 base64 = { version = "0.22", optional = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -31,3 +32,4 @@ regex = "1.10"
 [features]
 default = []
 encryption = ["rust-ai-agents-encryption", "base64"]
+audit = ["rust-ai-agents-audit"]

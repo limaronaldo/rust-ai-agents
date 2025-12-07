@@ -334,6 +334,21 @@ impl AuditEvent {
         })
     }
 
+    /// Convenience: create an LLM response event.
+    pub fn llm_response(
+        provider: impl Into<String>,
+        model: impl Into<String>,
+        tool_calls_count: usize,
+        finish_reason: Option<impl Into<String>>,
+    ) -> Self {
+        Self::info(EventKind::LlmResponse {
+            provider: provider.into(),
+            model: model.into(),
+            finish_reason: finish_reason.map(|r| r.into()),
+            tool_calls_count,
+        })
+    }
+
     /// Convenience: create an error event.
     pub fn error_event(error_type: impl Into<String>, message: impl Into<String>) -> Self {
         Self::error(EventKind::Error {
