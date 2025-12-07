@@ -12,7 +12,7 @@
 This document outlines the next major features to implement in rust-ai-agents:
 
 1. **Prometheus Metrics** - Real-time observability with Grafana integration ✅ COMPLETE
-2. **LlmProvider Trait** - Multi-provider abstraction (OpenAI, Claude, Gemini)
+2. **Model Router** - Multi-provider routing with automatic fallback ✅ COMPLETE
 
 ---
 
@@ -470,12 +470,12 @@ impl ModelRouter {
 - Added `/metrics` endpoint to dashboard
 - Full documentation at `docs/prometheus-metrics.md`
 
-### Step 2: LlmProvider Trait (Next)
-```bash
-git checkout main && git pull
-git checkout -b feat/llm-provider-trait
-# Implement Phase 2
-```
+### Step 2: Model Router ✅ COMPLETE (PR #38)
+- Added `crates/providers/src/router.rs`
+- Route-based provider/model selection
+- Automatic fallback on provider failure
+- Health tracking with auto-recovery
+- Full documentation at `docs/model-router.md`
 
 ---
 
@@ -547,7 +547,7 @@ After implementing all phases:
 | Metric | Before | After |
 |--------|--------|-------|
 | Observability | Basic logs | Full Prometheus + Grafana ✅ |
-| Provider lock-in | OpenAI only | Multi-provider with fallback |
+| Provider lock-in | OpenAI only | Multi-provider with fallback ✅ |
 | Cost visibility | Manual calculation | Real-time dashboards ✅ |
 | Latency tracking | None | P50/P90/P99 per route ✅ |
 
