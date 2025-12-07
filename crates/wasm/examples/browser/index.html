@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust AI Agents - Browser Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 {
+            color: #00d4ff;
+        }
+        .config {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .config label {
+            display: block;
+            margin-bottom: 5px;
+            color: #888;
+        }
+        .config input, .config select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #0f0f23;
+            color: #eee;
+        }
+        .chat-container {
+            background: #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .message.user {
+            background: #00d4ff;
+            color: #000;
+            margin-left: auto;
+        }
+        .message.assistant {
+            background: #2d2d44;
+        }
+        .message.system {
+            background: #3d1a1a;
+            color: #ff6b6b;
+            font-size: 0.9em;
+        }
+        .input-area {
+            display: flex;
+            padding: 15px;
+            background: #0f0f23;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px 0 0 4px;
+            background: #16213e;
+            color: #eee;
+        }
+        .input-area button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            background: #00d4ff;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .input-area button:hover {
+            background: #00b8e6;
+        }
+        .input-area button:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #888;
+        }
+        .streaming {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Rust AI Agents - Browser Demo</h1>
+
+    <div class="config">
+        <label>Provider</label>
+        <select id="provider">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openrouter">OpenRouter</option>
+        </select>
+
+        <label>API Key</label>
+        <input type="password" id="apiKey" placeholder="Enter your API key">
+
+        <label>Model</label>
+        <input type="text" id="model" value="gpt-4o-mini" placeholder="Model name">
+
+        <label>System Prompt (optional)</label>
+        <input type="text" id="systemPrompt" placeholder="You are a helpful assistant...">
+    </div>
+
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div class="message system">
+                Loading WASM module...
+            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." disabled>
+            <button id="sendBtn" disabled>Send</button>
+        </div>
+    </div>
+
+    <div class="status" id="status">Initializing...</div>
+
+    <script type="module">
+        import init, { WasmAgent, WasmAgentConfig } from '../pkg/rust_ai_agents_wasm.js';
+
+        let agent = null;
+        const messagesEl = document.getElementById('messages');
+        const userInputEl = document.getElementById('userInput');
+        const sendBtnEl = document.getElementById('sendBtn');
+        const statusEl = document.getElementById('status');
+
+        function addMessage(content, role) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = content;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return div;
+        }
+
+        function clearMessages() {
+            messagesEl.innerHTML = '';
+        }
+
+        function updateStatus(text, isStreaming = false) {
+            statusEl.textContent = text;
+            statusEl.className = isStreaming ? 'status streaming' : 'status';
+        }
+
+        function createAgent() {
+            const provider = document.getElementById('provider').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const model = document.getElementById('model').value;
+            const systemPrompt = document.getElementById('systemPrompt').value;
+
+            if (!apiKey) {
+                addMessage('Please enter an API key', 'system');
+                return false;
+            }
+
+            const config = new WasmAgentConfig(provider, apiKey, model);
+            if (systemPrompt) {
+                config.system_prompt = systemPrompt;
+            }
+            config.temperature = 0.7;
+            config.max_tokens = 2048;
+
+            agent = new WasmAgent(config);
+            clearMessages();
+            addMessage(`Agent created with ${provider}/${model}`, 'system');
+            return true;
+        }
+
+        async function sendMessage() {
+            const message = userInputEl.value.trim();
+            if (!message) return;
+
+            if (!agent && !createAgent()) return;
+
+            userInputEl.value = '';
+            userInputEl.disabled = true;
+            sendBtnEl.disabled = true;
+
+            addMessage(message, 'user');
+            const responseDiv = addMessage('', 'assistant');
+
+            try {
+                updateStatus('Sending request...', true);
+
+                // Use streaming
+                const stream = await agent.chatStream(message);
+                const reader = stream.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+
+                updateStatus('Receiving response...', true);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    // Parse SSE data
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content ||
+                                               parsed.delta?.text || '';
+                                if (content) {
+                                    fullResponse += content;
+                                    responseDiv.textContent = fullResponse;
+                                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                                }
+                            } catch (e) {
+                                // Not JSON, might be raw text
+                            }
+                        }
+                    }
+                }
+
+                updateStatus('Ready');
+
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message || error}`;
+                responseDiv.className = 'message system';
+                updateStatus('Error occurred');
+            }
+
+            userInputEl.disabled = false;
+            sendBtnEl.disabled = false;
+            userInputEl.focus();
+        }
+
+        // Initialize
+        async function main() {
+            try {
+                await init();
+                updateStatus('WASM loaded. Enter your API key to start.');
+                clearMessages();
+                addMessage('WASM module loaded successfully! Enter your API key and start chatting.', 'system');
+
+                userInputEl.disabled = false;
+                sendBtnEl.disabled = false;
+
+                sendBtnEl.addEventListener('click', sendMessage);
+                userInputEl.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') sendMessage();
+                });
+
+                // Recreate agent when config changes
+                ['provider', 'model', 'systemPrompt'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => {
+                        if (agent) {
+                            agent.free();
+                            agent = null;
+                        }
+                    });
+                });
+
+            } catch (error) {
+                updateStatus('Failed to load WASM');
+                addMessage(`Failed to initialize: ${error.message}`, 'system');
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
