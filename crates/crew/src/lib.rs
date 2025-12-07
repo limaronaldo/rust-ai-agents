@@ -12,6 +12,7 @@
 //! - **TimeTravel**: State history, replay, fork, and debugging for graph executions
 //! - **Subgraph**: Nested workflows, parallel subgraphs, and reusable graph components
 //! - **Handoff**: Agent-to-agent handoffs with context passing and return support
+//! - **Streaming**: Unified streaming events across graphs, handoffs, and workflows
 
 pub mod crew;
 pub mod graph;
@@ -19,6 +20,7 @@ pub mod handoff;
 pub mod human_loop;
 pub mod orchestra;
 pub mod process;
+pub mod streaming;
 pub mod subgraph;
 pub mod task_manager;
 pub mod time_travel;
@@ -30,6 +32,7 @@ pub use handoff::*;
 pub use human_loop::*;
 pub use orchestra::*;
 pub use process::*;
+pub use streaming::*;
 pub use subgraph::*;
 pub use task_manager::*;
 pub use time_travel::*;
