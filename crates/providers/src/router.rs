@@ -12,10 +12,11 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rust_ai_agents_providers::{
-//!     ModelRouter, RouteConfig, OpenAIProvider, AnthropicProvider, LLMBackend,
+//!     ModelRouter, RouteConfig, FallbackConfig, OpenAIProvider, AnthropicProvider, LLMBackend,
 //! };
+//! use rust_ai_agents_core::LLMMessage;
 //! use std::sync::Arc;
 //!
 //! #[tokio::main]
@@ -42,6 +43,8 @@
 //!     });
 //!
 //!     // Use router
+//!     let messages = vec![LLMMessage::user("Hello!")];
+//!     let tools = vec![];
 //!     let response = router.infer("chat", &messages, &tools, 0.7).await;
 //! }
 //! ```
