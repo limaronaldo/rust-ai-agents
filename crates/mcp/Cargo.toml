@@ -25,3 +25,10 @@ tokio-util = { version = "0.7", features = ["codec"] }
 # For SSE transport
 reqwest = { workspace = true }
 eventsource-client = "0.13"
+
+# For SSE server transport
+axum = { workspace = true }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+async-stream = { workspace = true }
+http = "1.0"

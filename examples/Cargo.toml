@@ -67,3 +67,7 @@ path = "mcp_integration.rs"
 [[example]]
 name = "mcp_server"
 path = "mcp_server.rs"
+
+[[example]]
+name = "mcp_sse_server"
+path = "mcp_sse_server.rs"

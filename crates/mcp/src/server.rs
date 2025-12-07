@@ -322,7 +322,7 @@ impl McpServer {
         while let Ok(Some(line)) = lines.next_line().await {
             debug!("Received: {}", line);
 
-            let response = self.handle_message(&line).await;
+            let response = self.handle_message_internal(&line).await;
 
             if let Some(resp) = response {
                 let json = serde_json::to_string(&resp).unwrap();
@@ -343,8 +343,8 @@ impl McpServer {
         Ok(())
     }
 
-    /// Handle an incoming JSON-RPC message
-    async fn handle_message(&self, message: &str) -> Option<JsonRpcResponse> {
+    /// Handle an incoming JSON-RPC message (internal)
+    async fn handle_message_internal(&self, message: &str) -> Option<JsonRpcResponse> {
         // Try to parse as request
         if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(message) {
             let response = self.handle_request(request).await;
@@ -362,7 +362,7 @@ impl McpServer {
     }
 
     /// Handle a JSON-RPC request
-    async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
+    pub async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
         debug!("Handling request: {} (id={:?})", request.method, request.id);
 
         let result = match request.method.as_str() {
@@ -507,12 +507,13 @@ impl McpServer {
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing params".to_string()))?;
 
-        let tools = self.tools.read();
-        let handler = tools
-            .get(&params.name)
-            .ok_or_else(|| McpError::ToolNotFound(params.name.clone()))?
-            .clone();
-        drop(tools);
+        let handler = {
+            let tools = self.tools.read();
+            tools
+                .get(&params.name)
+                .ok_or_else(|| McpError::ToolNotFound(params.name.clone()))?
+                .clone()
+        };
 
         let arguments = params.arguments.unwrap_or(serde_json::json!({}));
         let result = handler.execute(arguments).await?;
@@ -550,10 +551,13 @@ impl McpServer {
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing uri".to_string()))?;
 
-        let handler = self.resources.read();
-        let handler = handler
-            .as_ref()
-            .ok_or_else(|| McpError::CapabilityNotSupported("resources".to_string()))?;
+        let handler = {
+            let guard = self.resources.read();
+            guard
+                .as_ref()
+                .ok_or_else(|| McpError::CapabilityNotSupported("resources".to_string()))?
+                .clone()
+        };
 
         let content = handler.read(&params.uri).await?;
 
@@ -596,10 +600,13 @@ impl McpServer {
             .map_err(|e| McpError::InvalidParams(e.to_string()))?
             .ok_or_else(|| McpError::InvalidParams("Missing name".to_string()))?;
 
-        let handler = self.prompts.read();
-        let handler = handler
-            .as_ref()
-            .ok_or_else(|| McpError::CapabilityNotSupported("prompts".to_string()))?;
+        let handler = {
+            let guard = self.prompts.read();
+            guard
+                .as_ref()
+                .ok_or_else(|| McpError::CapabilityNotSupported("prompts".to_string()))?
+                .clone()
+        };
 
         let messages = handler.get(&params.name, params.arguments).await?;
 
