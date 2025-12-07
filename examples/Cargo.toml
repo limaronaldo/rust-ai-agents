@@ -19,6 +19,7 @@ serde_json = { workspace = true }
 async-trait = { workspace = true }
 dotenvy = { workspace = true }
 tracing-subscriber = { workspace = true }
+anyhow = "1"
 # API dependencies
 axum = "0.7"
 tower-http = { version = "0.5", features = ["trace", "cors"] }
@@ -51,3 +52,7 @@ path = "brazilian_entity_api.rs"
 [[example]]
 name = "data_investigator_agent"
 path = "data_investigator_agent.rs"
+
+[[example]]
+name = "benchmark"
+path = "benchmark.rs"

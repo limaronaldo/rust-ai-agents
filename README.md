@@ -242,6 +242,8 @@ This loop enables autonomous problem-solving with function calling, similar to O
 
 ## 📊 Performance Benchmarks
 
+Reproduzir localmente (mock LLM, sem rede): `cargo run -p rust-ai-agents-examples --example benchmark -- --agents 5 --messages 50 --latency-ms 5`
+
 ### Latency Comparison
 ```
 Function Calling Latency (1000 iterations):

@@ -172,8 +172,34 @@ impl Crew {
         let poll_interval = std::time::Duration::from_millis(100);
         let start = std::time::Instant::now();
 
+        // Phase 1: Wait for agent to START processing (leave Idle state)
+        let mut started_processing = false;
         loop {
-            // Check if we've exceeded timeout
+            if start.elapsed() > timeout_duration {
+                return Ok(TaskResult::failure(
+                    task.id.clone(),
+                    format!(
+                        "Task timed out waiting to start after {:?}",
+                        timeout_duration
+                    ),
+                ));
+            }
+
+            let state = agent_runtime.state.read().await;
+            let is_idle = matches!(state.status, AgentStatus::Idle);
+            drop(state);
+
+            if !is_idle {
+                started_processing = true;
+                tracing::debug!("Agent {} started processing task", agent_id);
+                break;
+            }
+
+            tokio::time::sleep(poll_interval).await;
+        }
+
+        // Phase 2: Wait for agent to FINISH processing (return to Idle state)
+        loop {
             if start.elapsed() > timeout_duration {
                 return Ok(TaskResult::failure(
                     task.id.clone(),
@@ -181,12 +207,13 @@ impl Crew {
                 ));
             }
 
-            // Check agent state
             let state = agent_runtime.state.read().await;
             let is_idle = matches!(state.status, AgentStatus::Idle);
             drop(state);
 
-            if is_idle {
+            if is_idle && started_processing {
+                tracing::debug!("Agent {} finished processing task", agent_id);
+
                 // Agent finished processing, check memory for response
                 if let Ok(history) = agent_runtime.memory.get_history().await {
                     // Find the last response from the agent after our message

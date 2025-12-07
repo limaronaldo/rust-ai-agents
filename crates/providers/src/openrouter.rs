@@ -22,7 +22,13 @@ impl OpenRouterProvider {
     /// Create a new OpenRouter provider
     pub fn new(api_key: String, model: String) -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(60))
+                .pool_max_idle_per_host(10)
+                .tcp_keepalive(std::time::Duration::from_secs(30))
+                .local_address(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
+                .build()
+                .expect("Failed to create HTTP client"),
             api_key,
             model,
             rate_limiter: Arc::new(RateLimiter::new(60, 100_000)), // 60 RPM, 100k TPM
