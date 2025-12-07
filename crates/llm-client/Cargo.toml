@@ -1,0 +1,15 @@
+[package]
+name = "rust-ai-agents-llm-client"
+version = "0.1.0"
+edition = "2021"
+description = "Shared LLM client logic for multiple runtimes (browser, edge, server)"
+license = "Apache-2.0"
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+pretty_assertions = "1.4"

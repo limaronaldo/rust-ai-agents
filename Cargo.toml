@@ -17,6 +17,8 @@ members = [
     "crates/cache",
     "crates/audit",
     "crates/github-ops",
+    "crates/llm-client",
+    "crates/fastly",
     "examples",
 ]
 
