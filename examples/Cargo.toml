@@ -47,3 +47,7 @@ path = "data_integration_demo.rs"
 [[example]]
 name = "brazilian_entity_api"
 path = "brazilian_entity_api.rs"
+
+[[example]]
+name = "data_investigator_agent"
+path = "data_investigator_agent.rs"

@@ -62,6 +62,7 @@ use uuid::Uuid;
     paths(
         health_check,
         get_metrics,
+        get_metrics_prometheus,
         list_sources,
         clear_cache,
         investigate_entity,
@@ -71,6 +72,8 @@ use uuid::Uuid;
     components(schemas(
         HealthResponse,
         MetricsResponse,
+        OperationalMetrics,
+        CacheMetrics,
         SourceInfo,
         SourcesResponse,
         CacheResponse,
@@ -116,6 +119,37 @@ struct ApiMetrics {
     active_investigations: usize,
     completed_investigations: usize,
     uptime_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+struct OperationalMetrics {
+    /// Uptime in seconds
+    uptime_seconds: u64,
+    /// Memory usage estimate in MB
+    memory_usage_mb: f64,
+    /// Total API requests
+    total_requests: u64,
+    /// Requests per minute (last minute)
+    requests_per_minute: f64,
+    /// Average latency in ms
+    avg_latency_ms: f64,
+    /// P95 latency in ms
+    p95_latency_ms: f64,
+    /// P99 latency in ms
+    p99_latency_ms: f64,
+    /// Error rate (0.0 - 1.0)
+    error_rate: f64,
+    /// Cache statistics
+    cache: CacheMetrics,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+struct CacheMetrics {
+    hit_rate: f64,
+    hits: u64,
+    misses: u64,
+    evictions: u64,
+    size: usize,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -291,6 +325,12 @@ struct AppState {
     /// Contador de requests
     request_count: std::sync::atomic::AtomicU64,
 
+    /// Error counter
+    error_count: std::sync::atomic::AtomicU64,
+
+    /// Latency samples for percentile calculation (circular buffer)
+    latency_samples: RwLock<Vec<u64>>,
+
     /// Hora de inicio do servidor
     started_at: Instant,
 }
@@ -303,6 +343,8 @@ impl AppState {
             metrics: Arc::new(DataMatchingMetrics::new()),
             results: RwLock::new(HashMap::new()),
             request_count: std::sync::atomic::AtomicU64::new(0),
+            error_count: std::sync::atomic::AtomicU64::new(0),
+            latency_samples: RwLock::new(Vec::with_capacity(1000)),
             started_at: Instant::now(),
         }
     }
@@ -312,13 +354,68 @@ impl AppState {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
+    fn increment_errors(&self) {
+        self.error_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    async fn record_latency(&self, latency_ms: u64) {
+        let mut samples = self.latency_samples.write().await;
+        if samples.len() >= 1000 {
+            samples.remove(0); // Remove oldest
+        }
+        samples.push(latency_ms);
+    }
+
     fn total_requests(&self) -> u64 {
         self.request_count
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    fn total_errors(&self) -> u64 {
+        self.error_count.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn error_rate(&self) -> f64 {
+        let total = self.total_requests();
+        if total == 0 {
+            0.0
+        } else {
+            self.total_errors() as f64 / total as f64
+        }
+    }
+
     fn uptime_seconds(&self) -> u64 {
         self.started_at.elapsed().as_secs()
+    }
+
+    fn requests_per_minute(&self) -> f64 {
+        let uptime = self.uptime_seconds();
+        if uptime == 0 {
+            0.0
+        } else {
+            (self.total_requests() as f64 / uptime as f64) * 60.0
+        }
+    }
+
+    async fn calculate_percentiles(&self) -> (f64, f64, f64) {
+        let samples = self.latency_samples.read().await;
+        if samples.is_empty() {
+            return (0.0, 0.0, 0.0);
+        }
+
+        let mut sorted: Vec<u64> = samples.clone();
+        sorted.sort_unstable();
+
+        let len = sorted.len();
+        let avg = sorted.iter().sum::<u64>() as f64 / len as f64;
+        let p95_idx = (len as f64 * 0.95) as usize;
+        let p99_idx = (len as f64 * 0.99) as usize;
+
+        let p95 = sorted.get(p95_idx.min(len - 1)).copied().unwrap_or(0) as f64;
+        let p99 = sorted.get(p99_idx.min(len - 1)).copied().unwrap_or(0) as f64;
+
+        (avg, p95, p99)
     }
 }
 
@@ -367,6 +464,107 @@ async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
             uptime_seconds: state.uptime_seconds(),
         },
     })
+}
+
+/// Get metrics in Prometheus format
+#[utoipa::path(
+    get,
+    path = "/api/v1/metrics/prometheus",
+    tag = "Metrics",
+    responses(
+        (status = 200, description = "Metrics in Prometheus format", content_type = "text/plain")
+    )
+)]
+async fn get_metrics_prometheus(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    state.increment_requests();
+
+    let pipeline = state.metrics.snapshot();
+    let results = state.results.read().await;
+    let (avg_latency, p95_latency, p99_latency) = state.calculate_percentiles().await;
+
+    let prometheus_output = format!(
+        r#"# HELP hyperagent_uptime_seconds Server uptime in seconds
+# TYPE hyperagent_uptime_seconds gauge
+hyperagent_uptime_seconds {}
+
+# HELP hyperagent_requests_total Total number of API requests
+# TYPE hyperagent_requests_total counter
+hyperagent_requests_total {}
+
+# HELP hyperagent_errors_total Total number of errors
+# TYPE hyperagent_errors_total counter
+hyperagent_errors_total {}
+
+# HELP hyperagent_error_rate Current error rate
+# TYPE hyperagent_error_rate gauge
+hyperagent_error_rate {}
+
+# HELP hyperagent_requests_per_minute Requests per minute
+# TYPE hyperagent_requests_per_minute gauge
+hyperagent_requests_per_minute {}
+
+# HELP hyperagent_latency_avg_ms Average latency in milliseconds
+# TYPE hyperagent_latency_avg_ms gauge
+hyperagent_latency_avg_ms {}
+
+# HELP hyperagent_latency_p95_ms P95 latency in milliseconds
+# TYPE hyperagent_latency_p95_ms gauge
+hyperagent_latency_p95_ms {}
+
+# HELP hyperagent_latency_p99_ms P99 latency in milliseconds
+# TYPE hyperagent_latency_p99_ms gauge
+hyperagent_latency_p99_ms {}
+
+# HELP hyperagent_investigations_completed Total completed investigations
+# TYPE hyperagent_investigations_completed counter
+hyperagent_investigations_completed {}
+
+# HELP hyperagent_cache_hit_rate Cache hit rate
+# TYPE hyperagent_cache_hit_rate gauge
+hyperagent_cache_hit_rate {}
+
+# HELP hyperagent_cache_hits Total cache hits
+# TYPE hyperagent_cache_hits counter
+hyperagent_cache_hits {}
+
+# HELP hyperagent_cache_misses Total cache misses
+# TYPE hyperagent_cache_misses counter
+hyperagent_cache_misses {}
+
+# HELP hyperagent_pipeline_queries_total Total pipeline queries
+# TYPE hyperagent_pipeline_queries_total counter
+hyperagent_pipeline_queries_total {}
+
+# HELP hyperagent_pipeline_success_rate Pipeline success rate
+# TYPE hyperagent_pipeline_success_rate gauge
+hyperagent_pipeline_success_rate {}
+
+# HELP hyperagent_cross_source_matches Cross-source entity matches
+# TYPE hyperagent_cross_source_matches counter
+hyperagent_cross_source_matches {}
+"#,
+        state.uptime_seconds(),
+        state.total_requests(),
+        state.total_errors(),
+        state.error_rate(),
+        state.requests_per_minute(),
+        avg_latency,
+        p95_latency,
+        p99_latency,
+        results.len(),
+        pipeline.cache_hit_rate,
+        pipeline.cache_hits,
+        pipeline.cache_misses,
+        pipeline.total_queries,
+        pipeline.success_rate,
+        pipeline.cross_source_matches,
+    );
+
+    (
+        StatusCode::OK,
+        [("content-type", "text/plain; charset=utf-8")],
+        prometheus_output,
+    )
 }
 
 /// List available data sources
@@ -624,12 +822,17 @@ async fn perform_investigation(
         result.narrative.clone()
     };
 
+    let processing_time_ms = start.elapsed().as_millis() as u64;
+
+    // Record latency for metrics
+    state.record_latency(processing_time_ms).await;
+
     InvestigationResponse {
         request_id,
         status: if has_matches { "success" } else { "not_found" }.to_string(),
         entity,
         narrative,
-        processing_time_ms: start.elapsed().as_millis() as u64,
+        processing_time_ms,
         timestamp: Utc::now(),
     }
 }
@@ -812,6 +1015,7 @@ async fn main() {
         .route("/health", get(health_check))
         // API v1 routes
         .route("/api/v1/metrics", get(get_metrics))
+        .route("/api/v1/metrics/prometheus", get(get_metrics_prometheus))
         .route("/api/v1/sources", get(list_sources))
         .route("/api/v1/cache", delete(clear_cache))
         .route("/api/v1/investigate", post(investigate_entity))

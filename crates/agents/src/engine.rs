@@ -4,6 +4,7 @@
 //! - Tracing instrumentation for observability (Jaeger, Honeycomb compatible)
 //! - Configurable timeout per agent to prevent hangs
 //! - Error injection into context for self-correction
+//! - Cost tracking integration for LLM API usage monitoring
 
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use tokio::time::timeout;
 use tracing::{debug, debug_span, error, info, instrument, warn, Instrument};
 
 use rust_ai_agents_core::*;
+use rust_ai_agents_monitoring::CostTracker;
 use rust_ai_agents_providers::*;
 use rust_ai_agents_tools::ToolRegistry;
 
@@ -24,6 +26,7 @@ use crate::memory::AgentMemory;
 pub struct AgentEngine {
     agents: Arc<DashMap<AgentId, Arc<AgentRuntime>>>,
     metrics: Arc<EngineMetrics>,
+    cost_tracker: Option<Arc<CostTracker>>,
 }
 
 /// Engine metrics with atomic counters for lock-free updates
@@ -54,7 +57,27 @@ impl AgentEngine {
         Self {
             agents: Arc::new(DashMap::new()),
             metrics: Arc::new(EngineMetrics::default()),
+            cost_tracker: None,
         }
+    }
+
+    /// Create an engine with cost tracking enabled
+    pub fn with_cost_tracker(cost_tracker: Arc<CostTracker>) -> Self {
+        Self {
+            agents: Arc::new(DashMap::new()),
+            metrics: Arc::new(EngineMetrics::default()),
+            cost_tracker: Some(cost_tracker),
+        }
+    }
+
+    /// Set or replace the cost tracker
+    pub fn set_cost_tracker(&mut self, cost_tracker: Arc<CostTracker>) {
+        self.cost_tracker = Some(cost_tracker);
+    }
+
+    /// Get the cost tracker (if configured)
+    pub fn cost_tracker(&self) -> Option<&Arc<CostTracker>> {
+        self.cost_tracker.as_ref()
     }
 
     /// Spawn a new agent with tracing instrumentation
@@ -83,6 +106,7 @@ impl AgentEngine {
         let executor_clone = executor.clone();
         let engine_clone = self.clone();
         let metrics_clone = self.metrics.clone();
+        let cost_tracker_clone = self.cost_tracker.clone();
 
         // Create a span for the agent's processing loop
         let agent_loop_span = tracing::info_span!(
@@ -122,6 +146,7 @@ impl AgentEngine {
                                 &backend_clone,
                                 &executor_clone,
                                 &metrics_clone,
+                                cost_tracker_clone.as_ref(),
                                 message.clone(),
                             ),
                         )
@@ -207,7 +232,7 @@ impl AgentEngine {
 
     /// Process a single message with ReACT loop (Reason -> Act -> Observe)
     #[instrument(
-        skip(state, memory, tool_registry, backend, executor, metrics, message),
+        skip(state, memory, tool_registry, backend, executor, metrics, cost_tracker, message),
         fields(agent_id = %config.id, max_iterations = config.max_iterations)
     )]
     async fn process_message(
@@ -218,6 +243,7 @@ impl AgentEngine {
         backend: &Arc<dyn LLMBackend>,
         executor: &ToolExecutor,
         metrics: &Arc<EngineMetrics>,
+        cost_tracker: Option<&Arc<CostTracker>>,
         message: Message,
     ) -> Result<Vec<Message>, AgentError> {
         let mut responses = Vec::new();
@@ -301,10 +327,43 @@ impl AgentEngine {
                 }
             }
 
-            // 2. Call LLM
+            // 2. Call LLM with cost tracking
+            let infer_start = std::time::Instant::now();
             let inference = backend
                 .infer(&llm_messages, &tool_schemas, config.temperature)
-                .await?;
+                .await;
+            let infer_latency_ms = infer_start.elapsed().as_secs_f64() * 1000.0;
+
+            // Record cost if tracker is configured
+            if let Some(tracker) = cost_tracker {
+                let model_info = backend.model_info();
+                match &inference {
+                    Ok(inf) => {
+                        tracker.record_request_detailed(
+                            &model_info.model,
+                            inf.token_usage.prompt_tokens as u64,
+                            inf.token_usage.completion_tokens as u64,
+                            inf.token_usage.cached_tokens.unwrap_or(0) as u64,
+                            infer_latency_ms,
+                            Some(config.id.0.as_str()),
+                            true,
+                        );
+                    }
+                    Err(_) => {
+                        tracker.record_request_detailed(
+                            &model_info.model,
+                            0,
+                            0,
+                            0,
+                            infer_latency_ms,
+                            Some(config.id.0.as_str()),
+                            false,
+                        );
+                    }
+                }
+            }
+
+            let inference = inference?;
 
             debug!(
                 content_len = inference.content.len(),

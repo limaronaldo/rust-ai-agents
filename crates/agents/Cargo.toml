@@ -10,6 +10,7 @@ repository.workspace = true
 rust-ai-agents-core = { path = "../core" }
 rust-ai-agents-providers = { path = "../providers" }
 rust-ai-agents-tools = { path = "../tools" }
+rust-ai-agents-monitoring = { path = "../monitoring" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
