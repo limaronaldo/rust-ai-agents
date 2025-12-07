@@ -19,6 +19,7 @@ members = [
     "crates/github-ops",
     "crates/llm-client",
     "crates/fastly",
+    "crates/cloudflare",
     "crates/leptos-ai",
     "crates/dioxus-ai",
     "crates/studio",
