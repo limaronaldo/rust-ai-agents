@@ -5,12 +5,12 @@
 //! This crate provides the fundamental building blocks for creating
 //! high-performance multi-agent systems in Rust.
 
-pub mod types;
+pub mod errors;
 pub mod message;
 pub mod tool;
-pub mod errors;
+pub mod types;
 
-pub use types::*;
+pub use errors::*;
 pub use message::*;
 pub use tool::*;
-pub use errors::*;
+pub use types::*;

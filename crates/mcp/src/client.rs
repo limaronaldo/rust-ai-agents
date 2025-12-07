@@ -54,8 +54,8 @@ impl<T: McpTransport> McpClient<T> {
             },
         };
 
-        let request = JsonRpcRequest::new(1i64, "initialize")
-            .with_params(serde_json::to_value(&params)?);
+        let request =
+            JsonRpcRequest::new(1i64, "initialize").with_params(serde_json::to_value(&params)?);
 
         let response = self.transport.request(request).await?;
 
@@ -66,11 +66,10 @@ impl<T: McpTransport> McpClient<T> {
             });
         }
 
-        let result: InitializeResult = serde_json::from_value(
-            response.result.ok_or_else(|| {
+        let result: InitializeResult =
+            serde_json::from_value(response.result.ok_or_else(|| {
                 McpError::InvalidResponse("No result in initialize response".to_string())
-            })?,
-        )?;
+            })?)?;
 
         // Check version compatibility
         if result.protocol_version != PROTOCOL_VERSION {
@@ -94,7 +93,9 @@ impl<T: McpTransport> McpClient<T> {
         );
 
         // Send initialized notification
-        self.transport.notify("notifications/initialized", None).await?;
+        self.transport
+            .notify("notifications/initialized", None)
+            .await?;
 
         Ok(())
     }
@@ -147,9 +148,11 @@ impl<T: McpTransport> McpClient<T> {
         let mut cursor: Option<String> = None;
 
         loop {
-            let params = ListToolsParams { cursor: cursor.clone() };
-            let request = JsonRpcRequest::new(0i64, "tools/list")
-                .with_params(serde_json::to_value(&params)?);
+            let params = ListToolsParams {
+                cursor: cursor.clone(),
+            };
+            let request =
+                JsonRpcRequest::new(0i64, "tools/list").with_params(serde_json::to_value(&params)?);
 
             let response = self.transport.request(request).await?;
 
@@ -160,11 +163,10 @@ impl<T: McpTransport> McpClient<T> {
                 });
             }
 
-            let result: ListToolsResult = serde_json::from_value(
-                response.result.ok_or_else(|| {
+            let result: ListToolsResult =
+                serde_json::from_value(response.result.ok_or_else(|| {
                     McpError::InvalidResponse("No result in list_tools response".to_string())
-                })?,
-            )?;
+                })?)?;
 
             all_tools.extend(result.tools);
 
@@ -197,8 +199,8 @@ impl<T: McpTransport> McpClient<T> {
             arguments: Some(arguments),
         };
 
-        let request = JsonRpcRequest::new(0i64, "tools/call")
-            .with_params(serde_json::to_value(&params)?);
+        let request =
+            JsonRpcRequest::new(0i64, "tools/call").with_params(serde_json::to_value(&params)?);
 
         let response = self.transport.request(request).await?;
 
@@ -209,11 +211,9 @@ impl<T: McpTransport> McpClient<T> {
             });
         }
 
-        let result: CallToolResult = serde_json::from_value(
-            response.result.ok_or_else(|| {
-                McpError::InvalidResponse("No result in call_tool response".to_string())
-            })?,
-        )?;
+        let result: CallToolResult = serde_json::from_value(response.result.ok_or_else(|| {
+            McpError::InvalidResponse("No result in call_tool response".to_string())
+        })?)?;
 
         Ok(result)
     }
@@ -233,8 +233,7 @@ impl<T: McpTransport> McpClient<T> {
 
         loop {
             let params = serde_json::json!({ "cursor": cursor });
-            let request = JsonRpcRequest::new(0i64, "resources/list")
-                .with_params(params);
+            let request = JsonRpcRequest::new(0i64, "resources/list").with_params(params);
 
             let response = self.transport.request(request).await?;
 
@@ -245,11 +244,10 @@ impl<T: McpTransport> McpClient<T> {
                 });
             }
 
-            let result: ListResourcesResult = serde_json::from_value(
-                response.result.ok_or_else(|| {
+            let result: ListResourcesResult =
+                serde_json::from_value(response.result.ok_or_else(|| {
                     McpError::InvalidResponse("No result in list_resources response".to_string())
-                })?,
-            )?;
+                })?)?;
 
             all_resources.extend(result.resources);
 
@@ -265,8 +263,7 @@ impl<T: McpTransport> McpClient<T> {
     /// Read a resource
     pub async fn read_resource(&self, uri: &str) -> Result<ResourceContent, McpError> {
         let params = serde_json::json!({ "uri": uri });
-        let request = JsonRpcRequest::new(0i64, "resources/read")
-            .with_params(params);
+        let request = JsonRpcRequest::new(0i64, "resources/read").with_params(params);
 
         let response = self.transport.request(request).await?;
 
@@ -282,11 +279,9 @@ impl<T: McpTransport> McpClient<T> {
             contents: Vec<ResourceContent>,
         }
 
-        let result: ReadResult = serde_json::from_value(
-            response.result.ok_or_else(|| {
-                McpError::InvalidResponse("No result in read_resource response".to_string())
-            })?,
-        )?;
+        let result: ReadResult = serde_json::from_value(response.result.ok_or_else(|| {
+            McpError::InvalidResponse("No result in read_resource response".to_string())
+        })?)?;
 
         result.contents.into_iter().next().ok_or_else(|| {
             McpError::InvalidResponse("Empty contents in read_resource response".to_string())
@@ -308,8 +303,7 @@ impl<T: McpTransport> McpClient<T> {
 
         loop {
             let params = serde_json::json!({ "cursor": cursor });
-            let request = JsonRpcRequest::new(0i64, "prompts/list")
-                .with_params(params);
+            let request = JsonRpcRequest::new(0i64, "prompts/list").with_params(params);
 
             let response = self.transport.request(request).await?;
 
@@ -320,11 +314,10 @@ impl<T: McpTransport> McpClient<T> {
                 });
             }
 
-            let result: ListPromptsResult = serde_json::from_value(
-                response.result.ok_or_else(|| {
+            let result: ListPromptsResult =
+                serde_json::from_value(response.result.ok_or_else(|| {
                     McpError::InvalidResponse("No result in list_prompts response".to_string())
-                })?,
-            )?;
+                })?)?;
 
             all_prompts.extend(result.prompts);
 

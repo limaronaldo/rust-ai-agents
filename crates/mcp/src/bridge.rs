@@ -128,10 +128,7 @@ impl<T: McpTransport + 'static> McpToolWrapper<T> {
     fn to_schema(&self) -> ToolSchema {
         let mut schema = ToolSchema::new(
             &self.mcp_tool.name,
-            self.mcp_tool
-                .description
-                .as_deref()
-                .unwrap_or("MCP tool"),
+            self.mcp_tool.description.as_deref().unwrap_or("MCP tool"),
         );
 
         // Convert MCP input_schema to our parameters format
