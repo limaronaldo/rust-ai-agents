@@ -19,6 +19,14 @@ serde_json = { workspace = true }
 async-trait = { workspace = true }
 dotenvy = { workspace = true }
 tracing-subscriber = { workspace = true }
+# API dependencies
+axum = "0.7"
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }
+uuid = { workspace = true }
+futures = { workspace = true }
+chrono = { workspace = true }
 
 [[example]]
 name = "simple_agent"
@@ -35,3 +43,7 @@ path = "advanced_monitoring.rs"
 [[example]]
 name = "data_integration_demo"
 path = "data_integration_demo.rs"
+
+[[example]]
+name = "brazilian_entity_api"
+path = "brazilian_entity_api.rs"
