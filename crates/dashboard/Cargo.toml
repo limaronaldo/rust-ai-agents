@@ -26,6 +26,16 @@ rust-ai-agents-monitoring = { path = "../monitoring" }
 # Agents crate for real data integration
 rust-ai-agents-agents = { path = "../agents", optional = true }
 
+# Providers crate for LLM streaming
+rust-ai-agents-providers = { path = "../providers", optional = true }
+
+# Core types
+rust-ai-agents-core = { path = "../core", optional = true }
+
+# Async streams for SSE
+tokio-stream = "0.1"
+async-stream = "0.3"
+
 # Time
 chrono = { workspace = true }
 
@@ -47,3 +57,4 @@ metrics-exporter-prometheus = "0.15"
 [features]
 default = []
 agents = ["rust-ai-agents-agents"]
+streaming = ["rust-ai-agents-providers", "rust-ai-agents-core"]

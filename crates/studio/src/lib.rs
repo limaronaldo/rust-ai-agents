@@ -129,6 +129,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/sessions/:id") view=pages::SessionDetailPage />
                     <Route path=path!("/agents") view=pages::AgentsPage />
                     <Route path=path!("/metrics") view=pages::MetricsPage />
+                    <Route path=path!("/chat") view=pages::ChatPage />
                     <Route path=path!("/settings") view=pages::SettingsPage />
                 </Routes>
             </components::Layout>

@@ -31,6 +31,7 @@ pub fn Sidebar() -> impl IntoView {
 
                 <NavSection title="Control">
                     <NavLink href="/agents" icon="🤖">"Agents"</NavLink>
+                    <NavLink href="/chat" icon="✨">"Chat"</NavLink>
                 </NavSection>
 
                 <NavSection title="System">
