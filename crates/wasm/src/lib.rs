@@ -36,6 +36,9 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
+/// Type alias for HTTP request components: (URL, Headers, Body)
+type HttpRequestParts = (String, Vec<(String, String)>, String);
+
 mod error;
 mod provider;
 mod streaming;
@@ -242,7 +245,7 @@ impl WasmAgent {
     fn build_request(
         &self,
         stream: bool,
-    ) -> Result<(String, Vec<(String, String)>, String), JsValue> {
+    ) -> Result<HttpRequestParts, JsValue> {
         match self.config.provider.as_str() {
             "openai" => self.build_openai_request(stream),
             "anthropic" => self.build_anthropic_request(stream),
@@ -257,7 +260,7 @@ impl WasmAgent {
     fn build_openai_request(
         &self,
         stream: bool,
-    ) -> Result<(String, Vec<(String, String)>, String), JsValue> {
+    ) -> Result<HttpRequestParts, JsValue> {
         let url = "https://api.openai.com/v1/chat/completions".to_string();
 
         let headers = vec![
@@ -284,7 +287,7 @@ impl WasmAgent {
     fn build_anthropic_request(
         &self,
         stream: bool,
-    ) -> Result<(String, Vec<(String, String)>, String), JsValue> {
+    ) -> Result<HttpRequestParts, JsValue> {
         let url = "https://api.anthropic.com/v1/messages".to_string();
 
         let headers = vec![
@@ -317,7 +320,7 @@ impl WasmAgent {
     fn build_openrouter_request(
         &self,
         stream: bool,
-    ) -> Result<(String, Vec<(String, String)>, String), JsValue> {
+    ) -> Result<HttpRequestParts, JsValue> {
         let url = "https://openrouter.ai/api/v1/chat/completions".to_string();
 
         let headers = vec![

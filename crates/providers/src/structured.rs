@@ -529,7 +529,7 @@ impl SchemaValidator {
                 if s.len() > max {
                     result.add_error(ValidationError {
                         path: path.to_string(),
-                        message: format!("String too long"),
+                        message: "String too long".to_string(),
                         expected: Some(format!("max length {}", max)),
                         actual: Some(format!("length {}", s.len())),
                     });
@@ -541,7 +541,7 @@ impl SchemaValidator {
                     if !re.is_match(s) {
                         result.add_error(ValidationError {
                             path: path.to_string(),
-                            message: format!("String doesn't match pattern"),
+                            message: "String doesn't match pattern".to_string(),
                             expected: Some(format!("pattern: {}", pattern)),
                             actual: Some(s.to_string()),
                         });

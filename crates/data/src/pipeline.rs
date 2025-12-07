@@ -178,6 +178,7 @@ pub struct DataPipeline {
     /// Cache for processed data
     cache: DataCache,
     /// Data loader function (customizable)
+    #[allow(clippy::type_complexity)]
     loader: Option<Arc<dyn Fn(&str) -> DataSource + Send + Sync>>,
 }
 
