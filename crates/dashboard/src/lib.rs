@@ -36,6 +36,9 @@ mod websocket;
 #[cfg(feature = "agents")]
 pub mod integration;
 
+#[cfg(feature = "audit")]
+pub mod audit;
+
 #[cfg(feature = "streaming")]
 pub mod streaming;
 
@@ -48,6 +51,11 @@ pub use state::{
 #[cfg(feature = "agents")]
 pub use integration::{
     add_demo_data, AgentBridge, DashboardBridge, SessionBridge, TrajectoryBridge,
+};
+
+#[cfg(feature = "audit")]
+pub use audit::{
+    audit_middleware, audit_routes, AuditEventResponse, AuditQuery, AuditState, AuditStats,
 };
 
 #[cfg(feature = "streaming")]

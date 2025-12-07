@@ -29,6 +29,8 @@
 
 pub mod agent_tool;
 pub mod approvals;
+#[cfg(feature = "audit")]
+pub mod audited_executor;
 pub mod checkpoint;
 pub mod discovery;
 pub mod durable;
@@ -53,6 +55,8 @@ pub mod vector_store;
 
 pub use agent_tool::*;
 pub use approvals::*;
+#[cfg(feature = "audit")]
+pub use audited_executor::*;
 pub use checkpoint::*;
 pub use discovery::*;
 pub use durable::*;
