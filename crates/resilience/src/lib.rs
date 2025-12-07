@@ -41,9 +41,7 @@ pub use circuit_breaker::{
     CircuitBreakerRegistry, CircuitState, CircuitStatus,
 };
 
-pub use rate_limit::{
-    GovernorRateLimiter, RateLimitConfig, RateLimitError, RateLimiterRegistry,
-};
+pub use rate_limit::{GovernorRateLimiter, RateLimitConfig, RateLimitError, RateLimiterRegistry};
 
 pub use retry::{
     AlwaysRetryable, NeverRetryable, RetryConfig, RetryError, RetryExecutor, RetryableError,
@@ -114,30 +112,45 @@ impl ResilientExecutor {
             let retry_executor = RetryExecutor::new(self.retry_config.clone());
             let op = operation.clone();
 
-            cb.execute(|| async {
-                retry_executor.execute(op.clone()).await
-            })
-            .await
-            .map_err(|e| match e {
-                CircuitBreakerError::CircuitOpen { name, state, retry_after } => {
-                    ResilientError::CircuitOpen { name, state, retry_after }
-                }
-                CircuitBreakerError::OperationFailed(retry_err) => match retry_err {
-                    RetryError::MaxRetriesExceeded { attempts, last_error } => {
-                        ResilientError::MaxRetriesExceeded { attempts, last_error }
-                    }
-                    RetryError::NonRetryable(e) => ResilientError::NonRetryable(e),
-                },
-            })
+            cb.execute(|| async { retry_executor.execute(op.clone()).await })
+                .await
+                .map_err(|e| match e {
+                    CircuitBreakerError::CircuitOpen {
+                        name,
+                        state,
+                        retry_after,
+                    } => ResilientError::CircuitOpen {
+                        name,
+                        state,
+                        retry_after,
+                    },
+                    CircuitBreakerError::OperationFailed(retry_err) => match retry_err {
+                        RetryError::MaxRetriesExceeded {
+                            attempts,
+                            last_error,
+                        } => ResilientError::MaxRetriesExceeded {
+                            attempts,
+                            last_error,
+                        },
+                        RetryError::NonRetryable(e) => ResilientError::NonRetryable(e),
+                    },
+                })
         } else {
             // Just retry without circuit breaker
             let retry_executor = RetryExecutor::new(self.retry_config.clone());
-            retry_executor.execute(operation).await.map_err(|e| match e {
-                RetryError::MaxRetriesExceeded { attempts, last_error } => {
-                    ResilientError::MaxRetriesExceeded { attempts, last_error }
-                }
-                RetryError::NonRetryable(e) => ResilientError::NonRetryable(e),
-            })
+            retry_executor
+                .execute(operation)
+                .await
+                .map_err(|e| match e {
+                    RetryError::MaxRetriesExceeded {
+                        attempts,
+                        last_error,
+                    } => ResilientError::MaxRetriesExceeded {
+                        attempts,
+                        last_error,
+                    },
+                    RetryError::NonRetryable(e) => ResilientError::NonRetryable(e),
+                })
         }
     }
 }

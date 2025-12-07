@@ -1,9 +1,6 @@
 //! Dashboard HTTP server
 
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use rust_ai_agents_monitoring::CostTracker;
 use std::sync::Arc;
 use std::time::Duration;

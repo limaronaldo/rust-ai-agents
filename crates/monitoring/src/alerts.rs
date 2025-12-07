@@ -241,6 +241,7 @@ impl RateLimiter {
 /// Alert manager for sending notifications
 pub struct AlertManager {
     client: Client,
+    #[allow(clippy::type_complexity)]
     channels: Arc<RwLock<Vec<(AlertChannel, Option<AlertSeverity>)>>>,
     rate_limiter: Arc<RwLock<RateLimiter>>,
     enabled: Arc<RwLock<bool>>,

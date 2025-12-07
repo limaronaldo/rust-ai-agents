@@ -292,6 +292,7 @@ impl CostTracker {
     }
 
     /// Record an API request with full details
+    #[allow(clippy::too_many_arguments)]
     pub fn record_request_detailed(
         &self,
         model: &str,

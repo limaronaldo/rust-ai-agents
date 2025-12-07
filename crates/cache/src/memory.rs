@@ -217,10 +217,10 @@ impl SemanticMemoryCache {
         for (key, embedding) in embeddings.iter() {
             let similarity = Self::cosine_similarity(query_embedding, embedding);
 
-            if similarity >= threshold {
-                if best_match.is_none() || similarity > best_match.as_ref().unwrap().1 {
-                    best_match = Some((key.clone(), similarity));
-                }
+            if similarity >= threshold
+                && (best_match.is_none() || similarity > best_match.as_ref().unwrap().1)
+            {
+                best_match = Some((key.clone(), similarity));
             }
         }
 

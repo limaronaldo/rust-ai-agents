@@ -322,7 +322,9 @@ impl SemanticRedisCache {
                             let similarity = Self::cosine_similarity(query_embedding, embedding);
 
                             if similarity >= threshold {
-                                if best_match.is_none() || similarity > best_match.as_ref().unwrap().1 {
+                                if best_match.is_none()
+                                    || similarity > best_match.as_ref().unwrap().1
+                                {
                                     best_match = Some((entry, similarity));
                                 }
                             }
@@ -362,7 +364,9 @@ impl Cache for SemanticRedisCache {
         response: &str,
         function_calls: Vec<String>,
     ) -> Result<(), CacheError> {
-        self.inner.store(query, context, response, function_calls).await
+        self.inner
+            .store(query, context, response, function_calls)
+            .await
     }
 
     async fn delete(&self, query: &str, context: &str) -> Result<bool, CacheError> {

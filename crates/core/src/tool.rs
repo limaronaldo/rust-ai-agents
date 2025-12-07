@@ -1,12 +1,12 @@
 //! Tool/function definitions for agent capabilities
 
-use serde::{Deserialize, Serialize};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::types::AgentId;
 use crate::errors::ToolError;
+use crate::types::AgentId;
 
 /// Tool/function schema for LLM function calling
 #[derive(Debug, Clone, Serialize, Deserialize)]

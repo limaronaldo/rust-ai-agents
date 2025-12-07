@@ -15,17 +15,13 @@ pub async fn index_handler() -> Html<&'static str> {
 }
 
 /// Get current metrics as JSON
-pub async fn metrics_handler(
-    State(state): State<Arc<DashboardState>>,
-) -> Json<serde_json::Value> {
+pub async fn metrics_handler(State(state): State<Arc<DashboardState>>) -> Json<serde_json::Value> {
     let metrics = state.get_metrics();
     Json(serde_json::to_value(metrics).unwrap_or_default())
 }
 
 /// Get cost stats as JSON
-pub async fn stats_handler(
-    State(state): State<Arc<DashboardState>>,
-) -> Json<serde_json::Value> {
+pub async fn stats_handler(State(state): State<Arc<DashboardState>>) -> Json<serde_json::Value> {
     let stats = state.cost_tracker.stats();
     Json(serde_json::to_value(stats).unwrap_or_default())
 }
