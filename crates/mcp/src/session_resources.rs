@@ -161,11 +161,7 @@ impl<S: SessionStoreRead + 'static> ResourceHandler for SessionResourceHandler<S
 
         match parts {
             SessionUriParts::List => {
-                let ids = self
-                    .store
-                    .list_ids()
-                    .await
-                    .map_err(|e| McpError::Internal(e))?;
+                let ids = self.store.list_ids().await.map_err(McpError::Internal)?;
 
                 let mut sessions = Vec::new();
                 for id in ids.into_iter().take(self.max_list_size) {
@@ -196,7 +192,7 @@ impl<S: SessionStoreRead + 'static> ResourceHandler for SessionResourceHandler<S
                     .store
                     .load_json(&session_id)
                     .await
-                    .map_err(|e| McpError::Internal(e))?
+                    .map_err(McpError::Internal)?
                     .ok_or_else(|| {
                         McpError::ResourceNotFound(format!("Session not found: {}", session_id))
                     })?;
@@ -214,7 +210,7 @@ impl<S: SessionStoreRead + 'static> ResourceHandler for SessionResourceHandler<S
                     .store
                     .get_messages_json(&session_id)
                     .await
-                    .map_err(|e| McpError::Internal(e))?
+                    .map_err(McpError::Internal)?
                     .ok_or_else(|| {
                         McpError::ResourceNotFound(format!("Session not found: {}", session_id))
                     })?;
@@ -232,7 +228,7 @@ impl<S: SessionStoreRead + 'static> ResourceHandler for SessionResourceHandler<S
                     .store
                     .get_turn_json(&session_id, turn_number)
                     .await
-                    .map_err(|e| McpError::Internal(e))?
+                    .map_err(McpError::Internal)?
                     .ok_or_else(|| {
                         McpError::ResourceNotFound(format!(
                             "Turn {} not found in session {}",
