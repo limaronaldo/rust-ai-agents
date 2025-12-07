@@ -42,7 +42,7 @@
 //!     .build()?;
 //! ```
 
-use crate::graph::{Graph, GraphState, GraphStatus, NodeFn, END};
+use crate::graph::{Graph, GraphState, GraphStatus, NodeFn};
 use rust_ai_agents_core::errors::CrewError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -673,7 +673,7 @@ pub struct SubgraphExecutionInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::GraphBuilder;
+    use crate::graph::{GraphBuilder, END};
 
     fn create_adder_graph(amount: i32) -> Graph {
         GraphBuilder::new(format!("adder_{}", amount))

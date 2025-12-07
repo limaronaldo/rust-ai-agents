@@ -359,6 +359,7 @@ The built-in dashboard provides real-time insights:
 - [x] Structured outputs (JSON schema validation, auto-retry)
 - [x] Time travel debugging (replay, fork, state history, breakpoints)
 - [x] Subgraphs / nested workflows (composable, reusable graph components)
+- [x] Agent handoffs (context passing, return support, trigger-based routing)
 
 ## 🔑 Environment Variables
 
