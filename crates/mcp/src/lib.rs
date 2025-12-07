@@ -28,6 +28,7 @@
 //! let result = client.call_tool("read_file", json!({"path": "/tmp/test.txt"})).await?;
 //! ```
 
+pub mod agent_handler;
 pub mod bridge;
 pub mod client;
 pub mod error;
@@ -36,6 +37,10 @@ pub mod server;
 pub mod sse_server;
 pub mod transport;
 
+pub use agent_handler::{
+    simple_agent, AgentMcpConfig, AgentMcpHandler, AgentMcpHandlerBuilder, AgentMcpInput,
+    AgentMcpOutput,
+};
 pub use bridge::McpToolBridge;
 pub use client::McpClient;
 pub use error::McpError;
