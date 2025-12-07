@@ -44,11 +44,14 @@ A production-ready, high-performance multi-agent framework built in pure Rust. D
 | **DeepSeek** | DeepSeek V3.2, DeepSeek R1 | via OpenRouter |
 | **OpenRouter** | 200+ models unified API | ✅ Ready |
 
-### 📊 Monitoring
+### 📊 Monitoring & Cost Tracking
+- **Integrated cost tracking** in AgentEngine (automatic per-request recording)
 - Real-time cost tracking with cache analytics
 - Terminal dashboard with live metrics
-- Alert system with configurable thresholds
+- Alert system with configurable budget thresholds
 - Token usage analytics and optimization insights
+- Per-agent and per-model cost breakdown
+- Prometheus-compatible metrics export
 
 ### 🛠️ Built-in Tools
 - Calculator & unit converter
@@ -90,11 +93,14 @@ use rust_ai_agents_core::*;
 use rust_ai_agents_tools::create_default_registry;
 use rust_ai_agents_providers::{LLMBackend, OpenRouterProvider};
 use rust_ai_agents_agents::*;
+use rust_ai_agents_monitoring::CostTracker;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let engine = Arc::new(AgentEngine::new());
+    // Create engine with integrated cost tracking
+    let cost_tracker = Arc::new(CostTracker::new());
+    let engine = Arc::new(AgentEngine::with_cost_tracker(cost_tracker.clone()));
     
     // Use Claude Opus 4.5 via OpenRouter
     let backend = Arc::new(OpenRouterProvider::new(
@@ -113,6 +119,10 @@ async fn main() -> anyhow::Result<()> {
     engine.send_message(Message::user(agent_id.clone(), "What is 2 + 2?"))?;
 
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    
+    // Print cost summary
+    cost_tracker.print_summary();
+    
     engine.shutdown().await;
     Ok(())
 }
@@ -296,6 +306,45 @@ impl Tool for WeatherTool {
 }
 ```
 
+## 💰 Integrated Cost Tracking
+
+Cost tracking is built directly into the AgentEngine, automatically recording every LLM call:
+
+```rust
+use rust_ai_agents_agents::AgentEngine;
+use rust_ai_agents_monitoring::CostTracker;
+use std::sync::Arc;
+
+// Create engine with cost tracking
+let cost_tracker = Arc::new(CostTracker::new());
+let engine = AgentEngine::with_cost_tracker(cost_tracker.clone());
+
+// Or add to existing engine
+let mut engine = AgentEngine::new();
+engine.set_cost_tracker(Arc::new(CostTracker::new()));
+
+// Add budget alerts
+cost_tracker.add_budget_alert(1.00, Some(Arc::new(|cost| {
+    println!("WARNING: Budget exceeded! Current cost: ${:.4}", cost);
+})));
+
+// After running agents, get detailed stats
+let stats = cost_tracker.stats();
+println!("Total cost: ${:.6}", stats.total_cost);
+println!("Cache savings: ${:.6}", stats.cache_savings);
+println!("Requests: {}", stats.total_requests);
+
+// Per-agent breakdown
+for (agent_id, agent_stats) in &stats.by_agent {
+    println!("Agent {}: ${:.6} ({} requests)", 
+        agent_id, agent_stats.total_cost, agent_stats.requests);
+}
+
+// Export as JSON or print dashboard
+cost_tracker.print_summary();
+let json = cost_tracker.export_json();
+```
+
 ## 📈 Monitoring Dashboard
 
 The built-in dashboard provides real-time insights:
@@ -360,6 +409,8 @@ The built-in dashboard provides real-time insights:
 - [x] Time travel debugging (replay, fork, state history, breakpoints)
 - [x] Subgraphs / nested workflows (composable, reusable graph components)
 - [x] Agent handoffs (context passing, return support, trigger-based routing)
+- [x] Unified streaming for workflows and agents
+- [x] Integrated CostTracker in AgentEngine (automatic LLM cost recording)
 
 ## 🔑 Environment Variables
 
