@@ -1,0 +1,45 @@
+[package]
+name = "rust-ai-agents-encryption"
+version = "0.1.0"
+edition = "2021"
+description = "At-rest encryption for sensitive data in rust-ai-agents"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/limaronaldo/rust-ai-agents"
+keywords = ["encryption", "security", "aes", "cryptography"]
+categories = ["cryptography", "authentication"]
+
+[features]
+default = ["aes"]
+aes = ["dep:aes-gcm"]
+chacha = ["dep:chacha20poly1305"]
+full = ["aes", "chacha"]
+
+[dependencies]
+# Core crypto
+aes-gcm = { version = "0.10", optional = true }
+chacha20poly1305 = { version = "0.10", optional = true }
+
+# Key derivation
+argon2 = "0.5"
+
+# Secure random
+rand = "0.8"
+
+# Memory safety - zero sensitive data
+zeroize = { version = "1.7", features = ["derive"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+
+# Async support
+async-trait = "0.1"
+
+# Base64 for key encoding
+base64 = "0.22"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
