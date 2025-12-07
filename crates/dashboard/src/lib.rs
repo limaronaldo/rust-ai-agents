@@ -33,5 +33,16 @@ mod server;
 mod state;
 mod websocket;
 
+#[cfg(feature = "agents")]
+pub mod integration;
+
 pub use server::DashboardServer;
-pub use state::{AgentStatus, DashboardMetrics, DashboardState};
+pub use state::{
+    AgentStatus, DashboardMetrics, DashboardState, Session, SessionStatus, TraceEntry,
+    TraceEntryType,
+};
+
+#[cfg(feature = "agents")]
+pub use integration::{
+    add_demo_data, AgentBridge, DashboardBridge, SessionBridge, TrajectoryBridge,
+};

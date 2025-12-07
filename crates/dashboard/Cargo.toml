@@ -23,6 +23,9 @@ serde_json = { workspace = true }
 # Monitoring types
 rust-ai-agents-monitoring = { path = "../monitoring" }
 
+# Agents crate for real data integration
+rust-ai-agents-agents = { path = "../agents", optional = true }
+
 # Time
 chrono = { workspace = true }
 
@@ -40,3 +43,7 @@ parking_lot = "0.12"
 
 # Prometheus metrics
 metrics-exporter-prometheus = "0.15"
+
+[features]
+default = []
+agents = ["rust-ai-agents-agents"]
