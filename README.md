@@ -5,6 +5,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Performance](https://img.shields.io/badge/performance-15x%20faster-green.svg)](#-performance-benchmarks)
+[![Crates](https://img.shields.io/badge/crates-18-brightgreen.svg)](#-workspace-crates)
 
 A production-ready, high-performance multi-agent framework built in pure Rust. Designed to be **15× faster** and **12× more memory-efficient** than Python alternatives like LangChain and CrewAI.
 
@@ -22,7 +23,7 @@ A production-ready, high-performance multi-agent framework built in pure Rust. D
 
 ## ✨ Features
 
-### 🚀 Performance
+### 🚀 Core Performance
 - Sub-millisecond function calling with typed schemas
 - True concurrency with Tokio async runtime
 - Memory safety guaranteed at compile time
@@ -31,35 +32,309 @@ A production-ready, high-performance multi-agent framework built in pure Rust. D
 ### 🤖 Multi-Agent System
 - **ReACT Loop** (Reasoning + Acting) for autonomous agents
 - **Crew orchestration** with DAG-based task dependencies
-- Parallel execution with intelligent backpressure
-- Message routing with multiple strategies
+- **Orchestra** for multi-perspective parallel analysis
+- **Graph workflows** with cycles and conditionals (LangGraph-style)
+- **Agent handoffs** with context passing and return support
+- **Human-in-the-loop** with approval gates and breakpoints
 
 ### 🔌 LLM Providers
 
 | Provider | Models | Status |
 |----------|--------|--------|
-| **OpenAI** | ChatGPT 5.1, o3 | ✅ Ready |
 | **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku | ✅ Ready |
-| **Google** | Gemini 3 Pro, Gemini 3 Flash | via OpenRouter |
-| **DeepSeek** | DeepSeek V3.2, DeepSeek R1 | via OpenRouter |
+| **OpenAI** | GPT-4 Turbo, GPT-4, GPT-3.5 | ✅ Ready |
 | **OpenRouter** | 200+ models unified API | ✅ Ready |
+| **Mock** | Testing without API calls | ✅ Ready |
 
-### 📊 Monitoring & Cost Tracking
-- **Integrated cost tracking** in AgentEngine (automatic per-request recording)
-- Real-time cost tracking with cache analytics
-- Terminal dashboard with live metrics
-- Alert system with configurable budget thresholds
-- Token usage analytics and optimization insights
-- Per-agent and per-model cost breakdown
-- Prometheus-compatible metrics export
+### 🛡️ Security & Reliability
+- **At-rest encryption** (AES-256-GCM, ChaCha20-Poly1305)
+- **Audit logging** for all LLM operations
+- **Circuit breaker** and retry logic
+- **Rate limiting** per model with queuing
 
-### 🛠️ Built-in Tools
-- Calculator & unit converter
-- Date/time operations
-- JSON/Base64/Hash encoding
-- HTTP requests
-- File operations
-- Web search (extensible)
+### 📊 Monitoring & Observability
+- **Cost tracking** with per-agent breakdown
+- **Prometheus metrics** export
+- **Agent Studio** web dashboard (Leptos 0.8)
+- **SSE streaming** for real-time responses
+- **Alert system** with configurable thresholds
+
+### 🌐 Edge & Browser Support
+- **Cloudflare Workers** with KV persistence
+- **Fastly Compute@Edge** support
+- **Browser WASM** compilation
+- **Leptos AI** and **Dioxus AI** hooks
+
+---
+
+## 🆕 MassGen-Inspired Multi-Agent Coordination
+
+Advanced coordination patterns inspired by [MassGen](https://github.com/massgen/MassGen) for robust multi-agent workflows:
+
+### 🗳️ Voting System
+
+Evaluate and rank agent answers through collective voting:
+
+```rust
+use rust_ai_agents_crew::voting::*;
+
+let mut ballot = VotingBallot::new("query-123", "What is the property value?");
+ballot.add_answer(AgentAnswer::new("appraiser", "The value is $500,000"));
+ballot.add_answer(AgentAnswer::new("analyst", "Based on comparables, $480,000-$520,000"));
+
+let config = VotingConfig::builder()
+    .quorum(3)
+    .strategy(AggregationStrategy::WeightedAverage)
+    .set_weight("senior_appraiser", 2.0)
+    .enable_veto(true)
+    .add_veto_agent("strategic_director")
+    .build();
+
+let mut session = VotingSession::new(ballot, config);
+session.cast_vote(Vote::approve("critic", "appraiser", Some("Well-reasoned")))?;
+session.cast_vote(Vote::score("validator", "analyst", 0.9, None))?;
+
+let result = session.tally()?;
+println!("Winner: {:?}", result.winner());
+println!("Consensus: {:?}", result.consensus_points);
+```
+
+**Features:**
+- Vote types: approve, reject, abstain, score-based, veto
+- Weighted voting with configurable agent weights
+- Quorum requirements for valid results
+- Veto power for strategic agents
+- Multiple aggregation strategies (majority, weighted, consensus)
+
+### 📊 Coordination Tracker
+
+Real-time progress monitoring for multi-agent workflows:
+
+```rust
+use rust_ai_agents_crew::coordination::*;
+
+let tracker = CoordinationBuilder::new("workflow-123")
+    .with_timeout(Duration::from_secs(300))
+    .add_agent("searcher", AgentRole::Primary)
+    .add_agent("validator", AgentRole::Validator)
+    .add_agent_with_deps("synthesizer", AgentRole::Synthesizer, 
+        vec!["searcher".to_string(), "validator".to_string()])
+    .build()
+    .await;
+
+// Subscribe to real-time events
+let mut rx = tracker.subscribe();
+tokio::spawn(async move {
+    while let Ok(event) = rx.recv().await {
+        match event {
+            CoordinationEvent::AgentCompleted { agent_id, duration_ms, .. } => {
+                println!("{} completed in {}ms", agent_id, duration_ms);
+            }
+            CoordinationEvent::BottleneckDetected { agent_id, .. } => {
+                println!("WARNING: {} is blocking progress", agent_id);
+            }
+            _ => {}
+        }
+    }
+});
+
+// Update progress
+tracker.update_status("searcher", AgentStatus::Working { progress: 0.5 }).await;
+tracker.mark_complete("searcher", Some("Found 10 results")).await;
+
+// Get summary
+let summary = tracker.summary().await;
+println!("Progress: {:.0}%", summary.overall_progress * 100.0);
+println!("Active: {}, Blocked: {}", summary.active_agents, summary.blocked_agents);
+```
+
+**Features:**
+- Progress tracking per agent with status updates
+- Dependency management between agents
+- Timeline visualization of events
+- Bottleneck detection for slow agents
+- Ready-agent detection for scheduling
+
+### 🛑 Cancellation Manager
+
+Graceful cancellation with partial result preservation:
+
+```rust
+use rust_ai_agents_crew::cancellation::*;
+
+let manager = CancellationManager::with_config(CancellationConfig {
+    default_policy: CancellationPolicy::Graceful,
+    default_grace_period: Duration::from_secs(30),
+    cascade_to_children: true,
+    ..Default::default()
+});
+
+// Create tokens for workflows
+let token = manager.create_token("workflow-123").await;
+let child_token = manager.create_child_token("workflow-123", "subtask-1").await;
+
+// Agents check token periodically
+if token.is_cancelled() {
+    // Save partial work
+    manager.save_partial_result("workflow-123", 
+        PartialResult::new("agent1", json!({"partial": "data"}), 0.7)
+    ).await;
+    return;
+}
+
+// Cancel with grace period
+manager.cancel("workflow-123", CancellationReason::Timeout, true).await;
+
+// Retrieve preserved results
+let results = manager.get_partial_results("workflow-123").await;
+for result in results {
+    println!("Preserved from {}: {:.0}% complete", result.agent_id, result.completion * 100.0);
+}
+```
+
+**Features:**
+- Graceful cancellation with cooperative tokens
+- Partial result preservation from completed agents
+- Cascading cancellation to child workflows
+- Multiple policies (immediate, graceful, graceful with timeout)
+- Scoped guards for automatic cleanup
+
+### 🔄 Restart Logic
+
+Context-aware agent restarts when new information arrives:
+
+```rust
+use rust_ai_agents_crew::restart::*;
+
+let manager = RestartManager::new(RestartConfig::default());
+
+// Register agents with restart policies
+manager.register_agent("searcher", AgentRestartPolicy {
+    trigger: RestartTrigger::OnPeerAnswer,
+    max_restarts: 3,
+    cooldown: Duration::from_secs(5),
+    preserve_previous_answer: true,
+    min_relevance_score: 0.5,
+    ..Default::default()
+}).await;
+
+// Agent produces initial answer
+manager.set_answer("searcher", json!({"results": 5})).await;
+
+// New context arrives
+let decision = manager.notify_new_context("searcher", 
+    NewContext::ValidationFeedback {
+        validator_id: "validator".to_string(),
+        feedback: "Missing recent listings".to_string(),
+        suggestions: vec!["Check 2024 data".to_string()],
+    }
+).await;
+
+if decision.should_restart {
+    let context = manager.get_restart_context("searcher").await.unwrap();
+    println!("Restart #{}, previous answer available: {}", 
+        context.restart_number, context.previous_answer.is_some());
+    println!("Suggestions: {:?}", context.suggestions);
+}
+```
+
+**Features:**
+- Context-aware restart triggers (peer answers, user input, validation)
+- Restart policies with limits and cooldowns
+- Previous answer preservation across restarts
+- Relevance scoring for restart decisions
+- Suggestions extraction from validation feedback
+
+### ⏱️ Rate Limiting
+
+Per-model rate limiting with priority queuing:
+
+```rust
+use rust_ai_agents_crew::rate_limit::*;
+
+let limiter = RateLimiter::builder()
+    .add_model_limit("claude-3-opus", ModelLimit::high_tier())
+    .add_model_limit("claude-3-haiku", ModelLimit::low_tier())
+    .add_model_limit("gpt-4-turbo", ModelLimit::new(20, Duration::from_secs(60))
+        .with_concurrent(5)
+        .with_tokens_per_minute(100_000)
+        .with_cost_limit(500))  // $5/hour in cents
+    .default_limit(ModelLimit::mid_tier())
+    .enable_queuing(true)
+    .warning_threshold(80.0)
+    .build();
+
+// Try immediate acquisition
+if limiter.try_acquire("claude-3-opus").await {
+    // Make request
+}
+
+// Or wait with priority
+let result = limiter.acquire_with_priority("claude-3-opus", Priority::High).await;
+println!("Waited: {:?}, was queued: {}", result.wait_time, result.was_queued);
+
+// Record usage for token/cost tracking
+limiter.record_usage("claude-3-opus", 1500, 3).await;  // tokens, cents
+
+// Check status
+let usage = limiter.get_usage("claude-3-opus").await;
+println!("Utilization: {:.0}%", usage.request_utilization());
+```
+
+**Features:**
+- Per-model rate limits with configurable windows
+- Token bucket with burst capacity
+- Request queuing with priority ordering
+- Token and cost usage tracking
+- Model tier presets (high/mid/low)
+- Critical priority bypass for urgent requests
+
+### 🎯 Answer Novelty
+
+Ensure diverse, non-redundant answers:
+
+```rust
+use rust_ai_agents_crew::novelty::*;
+
+let detector = NoveltyDetector::new(NoveltyConfig::default()
+    .with_synonyms("price", vec!["cost".to_string(), "value".to_string()]));
+
+// Add first answer
+detector.add_answer("agent1", "The property is worth $500,000 based on recent sales").await;
+
+// Check novelty of subsequent answers
+let result = detector.check_novelty("agent2", 
+    "Based on market analysis, the estimated value is around $500K"
+).await;
+
+println!("Novelty score: {:.2}", result.novelty_score);
+println!("Is novel: {}", result.is_novel);
+println!("New topics: {:?}", result.new_topics);
+println!("Redundant topics: {:?}", result.redundant_topics);
+
+if let Some(similar) = &result.most_similar {
+    println!("Similar to {} (similarity: {:.2})", similar.agent_id, similar.similarity);
+}
+
+// Get suggestions for improving answer
+for suggestion in &result.suggestions {
+    println!("Suggestion: {}", suggestion);
+}
+
+// Check overall diversity
+let diversity = detector.get_diversity_score().await;
+println!("Overall diversity: {:.2}", diversity);
+```
+
+**Features:**
+- Semantic similarity detection between answers
+- Novelty scoring (0.0 = duplicate, 1.0 = novel)
+- Topic extraction and coverage tracking
+- Numeric value comparison with tolerance
+- Synonym normalization support
+- Diversity score across all answers
+
+---
 
 ## 📦 Installation
 
@@ -91,7 +366,7 @@ cargo build --release
 ```rust
 use rust_ai_agents_core::*;
 use rust_ai_agents_tools::create_default_registry;
-use rust_ai_agents_providers::{LLMBackend, OpenRouterProvider};
+use rust_ai_agents_providers::{LLMBackend, AnthropicProvider};
 use rust_ai_agents_agents::*;
 use rust_ai_agents_monitoring::CostTracker;
 use std::sync::Arc;
@@ -102,10 +377,9 @@ async fn main() -> anyhow::Result<()> {
     let cost_tracker = Arc::new(CostTracker::new());
     let engine = Arc::new(AgentEngine::with_cost_tracker(cost_tracker.clone()));
     
-    // Use Claude Opus 4.5 via OpenRouter
-    let backend = Arc::new(OpenRouterProvider::new(
-        std::env::var("OPENROUTER_API_KEY")?,
-        "anthropic/claude-opus-4-5".to_string(),
+    // Use Claude Sonnet 4.5
+    let backend = Arc::new(AnthropicProvider::claude_sonnet_45(
+        std::env::var("ANTHROPIC_API_KEY")?
     )) as Arc<dyn LLMBackend>;
 
     let tools = Arc::new(create_default_registry());
@@ -128,32 +402,24 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-### Using Different Models
+### Using Different Providers
 
 ```rust
-// ChatGPT 5.1 (OpenAI's latest)
-let backend = Arc::new(OpenAIProvider::new(
-    std::env::var("OPENAI_API_KEY")?,
-    "chatgpt-5.1".to_string(),
-));
+// Claude Opus 4.5 (Anthropic's most capable)
+let backend = Arc::new(AnthropicProvider::claude_opus_45(api_key));
 
-// Claude Sonnet 4.5 (Anthropic's balanced model)
-let backend = Arc::new(AnthropicProvider::new(
-    std::env::var("ANTHROPIC_API_KEY")?,
-    "claude-sonnet-4-5-20251201".to_string(),
-));
+// Claude Sonnet 4.5 (Balanced performance)
+let backend = Arc::new(AnthropicProvider::claude_sonnet_45(api_key));
 
-// Gemini 3 Pro via OpenRouter
-let backend = Arc::new(OpenRouterProvider::new(
-    std::env::var("OPENROUTER_API_KEY")?,
-    "google/gemini-3-pro".to_string(),
-));
+// GPT-4 Turbo (OpenAI)
+let backend = Arc::new(OpenAIProvider::new(api_key, "gpt-4-turbo".to_string()));
 
-// DeepSeek V3.2 via OpenRouter
-let backend = Arc::new(OpenRouterProvider::new(
-    std::env::var("OPENROUTER_API_KEY")?,
-    "deepseek/deepseek-v3.2".to_string(),
-));
+// Any model via OpenRouter
+let backend = Arc::new(OpenRouterProvider::new(api_key, "meta-llama/llama-3-70b".to_string()));
+
+// Mock for testing (no API calls)
+let backend = Arc::new(MockBackend::new()
+    .with_response(MockResponse::text("Hello!")));
 ```
 
 ### Multi-Agent Crew
@@ -190,39 +456,60 @@ async fn run_crew(engine: Arc<AgentEngine>) -> anyhow::Result<()> {
 }
 ```
 
+### Orchestra (Multi-Perspective Analysis)
+
+```rust
+use rust_ai_agents_crew::orchestra::*;
+
+let orchestra = Orchestra::builder(backend)
+    .with_perspectives(presets::balanced_analysis())
+    .with_execution_mode(ExecutionMode::Parallel)
+    .with_synthesis_strategy(SynthesisStrategy::Comprehensive)
+    .build()?;
+
+let result = orchestra.analyze("How should we price this property?").await?;
+
+println!("Synthesis: {}", result.synthesis);
+println!("Agreement: {:.0}%", result.agreement_score.unwrap_or(0.0) * 100.0);
+
+for perspective in &result.perspectives {
+    println!("\n{}: {}", perspective.perspective_name, perspective.content);
+}
+```
+
+---
+
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Agent Engine                             │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐            │
-│  │  Agent 1   │  │  Agent 2   │  │  Agent N   │            │
-│  │            │  │            │  │            │            │
-│  │  ┌──────┐  │  │  ┌──────┐  │  │  ┌──────┐  │            │
-│  │  │Memory│  │  │  │Memory│  │  │  │Memory│  │            │
-│  │  └──────┘  │  │  └──────┘  │  │  └──────┘  │            │
-│  │  ┌──────┐  │  │  ┌──────┐  │  │  ┌──────┐  │            │
-│  │  │State │  │  │  │State │  │  │  │State │  │            │
-│  │  └──────┘  │  │  └──────┘  │  │  └──────┘  │            │
-│  └────┬───────┘  └────┬───────┘  └────┬───────┘            │
-│       │               │               │                     │
-│       └───────────────┴───────────────┘                     │
-│                       │                                      │
-│              ┌────────▼────────┐                            │
-│              │  Message Router  │                            │
-│              └────────┬────────┘                            │
-└───────────────────────┼─────────────────────────────────────┘
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-┌───────▼──────┐ ┌─────▼──────┐ ┌─────▼──────┐
-│ LLM Provider │ │Tool Registry│ │Cost Tracker│
-│              │ │             │ │            │
-│ • OpenAI     │ │ • Calculator│ │ • Metrics  │
-│ • Anthropic  │ │ • Web Search│ │ • Dashboard│
-│ • OpenRouter │ │ • File Ops  │ │ • Alerts   │
-│ • DeepSeek   │ │ • DateTime  │ │ • Budget   │
-└──────────────┘ └─────────────┘ └────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Agent Engine                                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐        │
+│  │  Agent 1   │  │  Agent 2   │  │  Agent 3   │  │  Agent N   │        │
+│  │  ┌──────┐  │  │  ┌──────┐  │  │  ┌──────┐  │  │  ┌──────┐  │        │
+│  │  │Memory│  │  │  │Memory│  │  │  │Memory│  │  │  │Memory│  │        │
+│  │  └──────┘  │  │  └──────┘  │  │  └──────┘  │  │  └──────┘  │        │
+│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘        │
+│        └───────────────┴───────────────┴───────────────┘                │
+│                               │                                          │
+│                    ┌──────────▼──────────┐                              │
+│                    │   Message Router     │                              │
+│                    └──────────┬──────────┘                              │
+└───────────────────────────────┼──────────────────────────────────────────┘
+                                │
+    ┌───────────────────────────┼───────────────────────────┐
+    │               │           │           │               │
+┌───▼───┐    ┌─────▼─────┐ ┌───▼───┐ ┌─────▼─────┐  ┌──────▼──────┐
+│  LLM  │    │   Tools   │ │ Cost  │ │Encryption │  │Coordination │
+│Providers│  │ Registry  │ │Tracker│ │  Layer    │  │   Crew      │
+├───────┤    ├───────────┤ ├───────┤ ├───────────┤  ├─────────────┤
+│OpenAI │    │Calculator │ │Metrics│ │AES-256-GCM│  │Voting       │
+│Anthropic│  │Web Search │ │Alerts │ │ChaCha20   │  │Coordination │
+│OpenRouter│ │File Ops   │ │Budget │ │Key Rotation│ │Cancellation │
+│Mock    │   │DateTime   │ │Export │ │Audit Log  │  │Restart      │
+└────────┘   └───────────┘ └───────┘ └───────────┘  │Rate Limit   │
+                                                     │Novelty      │
+                                                     └─────────────┘
 ```
 
 ## 🧠 How It Works: The ReACT Loop
@@ -240,9 +527,9 @@ Each agent operates on a ReACT (Reasoning + Acting) loop:
 
 This loop enables autonomous problem-solving with function calling, similar to OpenAI Assistants but **15× faster**.
 
-## 📊 Performance Benchmarks
+---
 
-Reproduzir localmente (mock LLM, sem rede): `cargo run -p rust-ai-agents-examples --example benchmark -- --agents 5 --messages 50 --latency-ms 5`
+## 📊 Performance Benchmarks
 
 ### Latency Comparison
 ```
@@ -268,9 +555,9 @@ Concurrent Agents (sustained, 1 minute):
    → 200× more scalable
 ```
 
-## 🛠️ Creating Custom Tools
+---
 
-Tools are easy to create with the `Tool` trait:
+## 🛠️ Creating Custom Tools
 
 ```rust
 use rust_ai_agents_core::*;
@@ -297,83 +584,84 @@ impl Tool for WeatherTool {
         args: serde_json::Value,
     ) -> Result<serde_json::Value, ToolError> {
         let city = args["city"].as_str().unwrap();
-        let weather = fetch_weather(city).await?;
-        
         Ok(serde_json::json!({
             "city": city,
-            "temperature": weather.temp,
-            "conditions": weather.conditions
+            "temperature": 22,
+            "conditions": "sunny"
         }))
     }
 }
 ```
 
-## 💰 Integrated Cost Tracking
+---
 
-Cost tracking is built directly into the AgentEngine, automatically recording every LLM call:
+## 🔑 Environment Variables
 
-```rust
-use rust_ai_agents_agents::AgentEngine;
-use rust_ai_agents_monitoring::CostTracker;
-use std::sync::Arc;
+| Key | Description |
+|-----|-------------|
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `OPENROUTER_API_KEY` | OpenRouter API key |
+| `ENCRYPTION_KEY` | Base64-encoded encryption key |
+| `RUST_LOG` | Logging level (e.g., `info`, `debug`) |
 
-// Create engine with cost tracking
-let cost_tracker = Arc::new(CostTracker::new());
-let engine = AgentEngine::with_cost_tracker(cost_tracker.clone());
+---
 
-// Or add to existing engine
-let mut engine = AgentEngine::new();
-engine.set_cost_tracker(Arc::new(CostTracker::new()));
+## 🧩 Workspace Crates
 
-// Add budget alerts
-cost_tracker.add_budget_alert(1.00, Some(Arc::new(|cost| {
-    println!("WARNING: Budget exceeded! Current cost: ${:.4}", cost);
-})));
+| Crate | Description |
+|-------|-------------|
+| `rust-ai-agents-core` | Core types (messages, tools, errors) |
+| `rust-ai-agents-providers` | LLM backends with routing & fallback |
+| `rust-ai-agents-tools` | Tool registry and built-in tools |
+| `rust-ai-agents-agents` | Agent engine with ReACT loop |
+| `rust-ai-agents-crew` | Multi-agent orchestration & coordination |
+| `rust-ai-agents-monitoring` | Cost tracking, metrics, Prometheus |
+| `rust-ai-agents-encryption` | At-rest encryption (AES-256-GCM) |
+| `rust-ai-agents-audit` | Audit logging for compliance |
+| `rust-ai-agents-mcp` | Model Context Protocol server |
+| `rust-ai-agents-dashboard` | Axum web backend with SSE |
+| `rust-ai-agents-studio` | Leptos 0.8 WASM frontend |
+| `rust-ai-agents-leptos-ai` | Leptos AI chat hooks |
+| `rust-ai-agents-dioxus-ai` | Dioxus AI chat hooks |
+| `rust-ai-agents-llm-client` | Multi-runtime LLM client |
+| `rust-ai-agents-cloudflare` | Cloudflare Workers support |
+| `rust-ai-agents-fastly` | Fastly Compute@Edge support |
+| `rust-ai-agents-wasm` | Browser WASM bindings |
+| `rust-ai-agents-data` | Data matching/normalization |
 
-// After running agents, get detailed stats
-let stats = cost_tracker.stats();
-println!("Total cost: ${:.6}", stats.total_cost);
-println!("Cache savings: ${:.6}", stats.cache_savings);
-println!("Requests: {}", stats.total_requests);
+---
 
-// Per-agent breakdown
-for (agent_id, agent_stats) in &stats.by_agent {
-    println!("Agent {}: ${:.6} ({} requests)", 
-        agent_id, agent_stats.total_cost, agent_stats.requests);
-}
+## 🗺️ Roadmap
 
-// Export as JSON or print dashboard
-cost_tracker.print_summary();
-let json = cost_tracker.export_json();
-```
+### ✅ Completed
+- Core agent engine with ReACT loop
+- Multi-provider support (OpenAI, Anthropic, OpenRouter)
+- Crew orchestration with dependencies
+- Graph workflows with cycles (LangGraph-style)
+- Human-in-the-loop (approval gates, breakpoints)
+- Time travel debugging (replay, fork, state history)
+- Agent handoffs with context passing
+- At-rest encryption (AES-256-GCM)
+- Audit logging
+- SSE streaming responses
+- Agent Studio web dashboard
+- Cloudflare Workers support
+- **MassGen-inspired coordination:**
+  - Voting system for answer evaluation
+  - Coordination tracker for progress monitoring
+  - Cancellation manager with partial results
+  - Restart logic for answer improvement
+  - Per-model rate limiting
+  - Answer novelty detection
 
-## 📈 Monitoring Dashboard
+### 🔜 Planned
+- Grafana dashboards and alerting
+- Multi-tenancy and workspace support
+- More LLM providers (Gemini, Mistral, Ollama)
+- Production deployment configurations
 
-The built-in dashboard provides real-time insights:
-
-```
-╔═══════════════════════════════════════════════════════════╗
-║           RUST AI AGENTS - LIVE DASHBOARD                ║
-╠═══════════════════════════════════════════════════════════╣
-║ 🤖 Agents Running:          3                            ║
-║ 📨 Messages Processed:     127                           ║
-╠═══════════════════════════════════════════════════════════╣
-║ 💰 COST METRICS                                           ║
-║   Total Cost:         $  0.001234                        ║
-║   Cache Savings:      $  0.000456                        ║
-║   Net Cost:           $  0.000778                        ║
-╠═══════════════════════════════════════════════════════════╣
-║ 🎯 TOKEN METRICS                                          ║
-║   Input Tokens:           45,231                         ║
-║   Output Tokens:          12,847                         ║
-║   Cached Tokens:          28,940                         ║
-╠═══════════════════════════════════════════════════════════╣
-║ ⚡ PERFORMANCE                                             ║
-║   Cache Hit Rate:          64.0%                         ║
-║   Avg Latency:             23 ms                         ║
-║   Cache Efficiency:   [████████████████████░░░░░░░░░░░]  ║
-╚═══════════════════════════════════════════════════════════╝
-```
+---
 
 ## 🎯 Use Cases
 
@@ -381,69 +669,25 @@ The built-in dashboard provides real-time insights:
 - High-throughput production systems
 - Real-time agent interactions
 - Cost-sensitive applications
-- Embedded systems / Edge AI
+- Edge AI / Cloudflare Workers
 - Kubernetes deployments (tiny containers)
 - Financial trading bots
 - Customer service automation
 
-### ⚠️ Not Ideal For:
+### ⚠️ Consider Alternatives For:
 - Rapid prototyping (Python is faster to iterate)
 - Research experiments (unless performance matters)
 - Teams without Rust experience
 
-## 🗺️ Roadmap
-
-- [x] Core agent engine with ReACT loop
-- [x] Multi-provider support (OpenAI, Anthropic, OpenRouter)
-- [x] Crew orchestration with dependencies
-- [x] Cost tracking and monitoring
-- [x] Built-in tools (calculator, web, file, datetime, encoding)
-- [x] Anthropic Claude provider
-- [x] Vector memory with RAG
-- [x] Persistent storage (SQLite with WAL / Sled)
-- [x] Streaming LLM responses
-- [x] Agent-to-agent delegation
-- [x] WebAssembly compilation
-- [x] Web dashboard (real-time UI)
-- [x] Graph workflows with cycles (LangGraph-style)
-- [x] Human-in-the-loop (approval gates, breakpoints, input collection)
-- [x] Structured outputs (JSON schema validation, auto-retry)
-- [x] Time travel debugging (replay, fork, state history, breakpoints)
-- [x] Subgraphs / nested workflows (composable, reusable graph components)
-- [x] Agent handoffs (context passing, return support, trigger-based routing)
-- [x] Unified streaming for workflows and agents
-- [x] Integrated CostTracker in AgentEngine (automatic LLM cost recording)
-
-## 🔑 Environment Variables
-
-| Key | Description |
-|-----|-------------|
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `OPENROUTER_API_KEY` | OpenRouter API key |
-| `RUST_LOG` | Logging level (e.g., `info`, `debug`) |
-
-## 🧩 Workspace Crates
-
-| Crate | Description |
-|-------|-------------|
-| `rust-ai-agents-core` | Core types (messages, tools, errors) |
-| `rust-ai-agents-providers` | LLM backends with rate limiting & retry |
-| `rust-ai-agents-tools` | Tool registry and built-in tools |
-| `rust-ai-agents-agents` | Agent engine with ReACT loop, memory, persistence |
-| `rust-ai-agents-crew` | Task orchestration (sequential, parallel, hierarchical) |
-| `rust-ai-agents-monitoring` | Cost tracking, metrics, alerts |
-| `rust-ai-agents-data` | Data matching/normalization pipelines |
-| `rust-ai-agents-wasm` | WebAssembly bindings for browser/Node.js |
-| `rust-ai-agents-dashboard` | Real-time web dashboard with WebSocket |
+---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
 
 1. Run `cargo fmt` and `cargo clippy`
-2. Add tests or examples when possible
-3. Discuss breaking API changes in an issue first
+2. Add tests for new features
+3. Discuss breaking changes in an issue first
 
 ## 📄 License
 
@@ -454,16 +698,15 @@ Licensed under the [Apache License, Version 2.0](LICENSE).
 **Inspired by:**
 - [LangChain](https://langchain.com/) - Python framework for LLM apps
 - [CrewAI](https://crewai.com/) - Multi-agent orchestration
-- [AutoGPT](https://autogpt.net/) - Autonomous agents
+- [MassGen](https://github.com/massgen/MassGen) - Multi-agent coordination patterns
+- [LangGraph](https://github.com/langchain-ai/langgraph) - Graph-based workflows
 
 **Built with:**
 - [Tokio](https://tokio.rs/) - Async runtime
-- [Reqwest](https://github.com/seanmonstar/reqwest) - HTTP client
+- [Axum](https://github.com/tokio-rs/axum) - Web framework
+- [Leptos](https://leptos.dev/) - Full-stack Rust framework
 - [Serde](https://serde.rs/) - Serialization
-- [SQLx](https://github.com/launchbadge/sqlx) - Database toolkit
 
-## 📧 Contact
-
-**Ronaldo Lima** - [@limaronaldo](https://github.com/limaronaldo)
+---
 
 **Project Link:** [https://github.com/limaronaldo/rust-ai-agents](https://github.com/limaronaldo/rust-ai-agents)
