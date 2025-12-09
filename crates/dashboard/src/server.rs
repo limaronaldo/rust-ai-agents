@@ -41,6 +41,11 @@ impl DashboardServer {
         self.state.clone()
     }
 
+    /// Get the Axum router for testing
+    pub fn router(&self) -> Router {
+        self.build_router()
+    }
+
     /// Build the Axum router
     fn build_router(&self) -> Router {
         let cors = CorsLayer::new()
