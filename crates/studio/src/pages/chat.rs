@@ -3,8 +3,11 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+
+use crate::api::{ApiClient, DashboardMetrics};
 
 /// Message in the chat
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +45,10 @@ pub fn ChatPage() -> impl IntoView {
     let (is_streaming, set_streaming) = signal(false);
     let (current_response, set_current_response) = signal(String::new());
     let (error, set_error) = signal(Option::<String>::None);
+
+    // Lightweight snapshot for landing stats
+    let metrics =
+        LocalResource::new(|| async { ApiClient::from_origin().get_metrics().await.ok() });
 
     // Core send logic (extracted to avoid event type issues)
     let do_send = move || {
@@ -136,12 +143,8 @@ pub fn ChatPage() -> impl IntoView {
                 {move || {
                     let msgs = messages.get();
                     if msgs.is_empty() && current_response.get().is_empty() {
-                        view! {
-                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
-                                <span class="text-4xl mb-2">"💬"</span>
-                                <p>"Start a conversation with the AI"</p>
-                            </div>
-                        }.into_any()
+                        let snapshot = metrics.get().flatten();
+                        view! { <ChatLanding metrics=snapshot set_input=set_input /> }.into_any()
                     } else {
                         view! {
                             <div class="space-y-4">
@@ -220,6 +223,174 @@ fn MessageBubble(#[prop(into)] _role: String, content: String, is_user: bool) ->
             </div>
         </div>
     }
+}
+
+/// Landing view shown before the first message
+#[component]
+fn ChatLanding(metrics: Option<DashboardMetrics>, set_input: WriteSignal<String>) -> impl IntoView {
+    let suggestions = vec![
+        "Buscar imóvel: Rua Augusta, 1500, São Paulo",
+        "Consultar CPF 123.456.789-00 (dados e vínculos)",
+        "Trazer sócios e imóveis do CNPJ 12.345.678/0001-99",
+        "Listar transações recentes na Vila Mariana",
+        "Comparar valores de aluguel por bairro em SP",
+        "Gerar planilha com imóveis comerciais disponíveis",
+    ];
+
+    let stats = metrics.map(|m| LandingStats {
+        agents: m.active_agents,
+        messages: m.total_messages,
+        tokens: m.cost_stats.total_tokens,
+        uptime_hours: m.uptime_seconds / 3600,
+    });
+
+    view! {
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 shadow-lg">
+                    <p class="text-sm uppercase tracking-wide text-blue-300 font-semibold mb-2">"IBVI IA"</p>
+                    <h2 class="text-3xl font-bold text-white leading-tight mb-3">"Respostas rápidas para imóveis, pessoas e empresas."</h2>
+                    <p class="text-slate-300 max-w-2xl mb-4">
+                        "Pergunte em linguagem natural e receba consultas combinando cadastros de imóveis, CPFs, CNPJs e transações, com resumo pronto para usar."
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        {suggestions.into_iter().map(|s| {
+                            let text = s.to_string();
+                            let set_input = set_input.clone();
+                            view! {
+                                <button
+                                    class="px-3 py-2 bg-slate-700/60 hover:bg-slate-600 text-slate-100 rounded-lg text-sm border border-slate-600 transition"
+                                    on:click=move |_| set_input.set(text.clone())
+                                >
+                                    {text.clone()}
+                                </button>
+                            }
+                        }).collect::<Vec<_>>()}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FeatureCard
+                        title="Imóveis"
+                        description="Endereço, IPTU, proprietário, histórico de compra/venda."
+                        action="Exemplo: Rua Haddock Lobo 595"
+                        on_click=move || set_input.set("Buscar imóvel Rua Haddock Lobo 595".into())
+                    />
+                    <FeatureCard
+                        title="Pessoas"
+                        description="CPF, contatos, vínculos com empresas e imóveis."
+                        action="Exemplo: CPF 123.456.789-00"
+                        on_click=move || set_input.set("Consultar CPF 123.456.789-00".into())
+                    />
+                    <FeatureCard
+                        title="Empresas"
+                        description="CNPJ, sócios, imóveis corporativos e transações."
+                        action="Exemplo: CNPJ 12.345.678/0001-99"
+                        on_click=move || set_input.set("Buscar empresa CNPJ 12.345.678/0001-99".into())
+                    />
+                    <FeatureCard
+                        title="Transações"
+                        description="Histórico, tendências por bairro e exportação de resultados."
+                        action="Exemplo: Transações na Vila Mariana"
+                        on_click=move || set_input.set("Transações recentes Vila Mariana".into())
+                    />
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <StatsCard stats=stats />
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-2">"Dicas rápidas"</h3>
+                    <ul class="text-slate-300 text-sm space-y-2 list-disc list-inside">
+                        <li>"Peça comparações: 'Compare aluguel médio em Pinheiros vs Moema'."</li>
+                        <li>"Combine filtros: bairro + faixa de preço + tipo."</li>
+                        <li>"Peça export: 'Envie para Google Sheets'."</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[derive(Clone)]
+struct LandingStats {
+    agents: usize,
+    messages: u64,
+    tokens: u64,
+    uptime_hours: u64,
+}
+
+#[component]
+fn StatsCard(stats: Option<LandingStats>) -> impl IntoView {
+    let placeholders = LandingStats {
+        agents: 0,
+        messages: 0,
+        tokens: 0,
+        uptime_hours: 0,
+    };
+
+    let data = stats.unwrap_or(placeholders);
+
+    view! {
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-200">"Status do sistema"</h3>
+                <span class="text-xs text-green-300 bg-green-900/40 px-2 py-1 rounded-full">"Online"</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-slate-200 text-sm">
+                <StatItem label="Agentes ativos" value=format_number(data.agents as u64) />
+                <StatItem label="Mensagens" value=format_number(data.messages) />
+                <StatItem label="Tokens" value=format_number(data.tokens) />
+                <StatItem label="Uptime (h)" value=format_number(data.uptime_hours) />
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn StatItem(label: &'static str, value: String) -> impl IntoView {
+    view! {
+        <div class="bg-slate-700/40 rounded-xl p-3 border border-slate-700">
+            <p class="text-xs text-slate-400">{label}</p>
+            <p class="text-lg font-semibold text-white">{value}</p>
+        </div>
+    }
+}
+
+#[component]
+fn FeatureCard(
+    title: &'static str,
+    description: &'static str,
+    action: &'static str,
+    on_click: impl Fn() + 'static,
+) -> impl IntoView {
+    let handler = Rc::new(on_click);
+    view! {
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-2">
+            <h3 class="text-lg font-semibold text-white">{title}</h3>
+            <p class="text-sm text-slate-300">{description}</p>
+            <button
+                class="text-sm text-blue-300 hover:text-blue-200 inline-flex items-center gap-2"
+                on:click={
+                    let handler = handler.clone();
+                    move |_| (handler)()
+                }
+            >
+                {action}
+                <span aria-hidden="true">"→"</span>
+            </button>
+        </div>
+    }
+}
+
+fn format_number(n: u64) -> String {
+    let mut s = n.to_string();
+    let mut i = s.len() as isize - 3;
+    while i > 0 {
+        s.insert(i as usize, '.');
+        i -= 3;
+    }
+    s
 }
 
 /// Fetch with streaming support

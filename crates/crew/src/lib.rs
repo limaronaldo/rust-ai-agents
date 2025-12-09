@@ -30,6 +30,7 @@ pub mod streaming;
 pub mod subgraph;
 pub mod task_manager;
 pub mod time_travel;
+pub mod voting;
 pub mod workflow;
 
 pub use crew::*;
@@ -42,4 +43,5 @@ pub use streaming::*;
 pub use subgraph::*;
 pub use task_manager::*;
 pub use time_travel::*;
+pub use voting::*;
 pub use workflow::*;
