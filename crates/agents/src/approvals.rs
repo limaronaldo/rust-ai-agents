@@ -40,6 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::{self, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 use thiserror::Error;
 
 /// Errors that can occur during approval
@@ -72,6 +73,16 @@ pub enum ApprovalDecision {
 
     /// Skip - skip this tool but continue the agent loop
     Skip,
+}
+
+/// Lifecycle states for an approval request
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ApprovalStatus {
+    Pending,
+    Approved,
+    Rejected,
+    Modified,
+    TimedOut,
 }
 
 impl ApprovalDecision {
@@ -111,6 +122,12 @@ pub enum ApprovalReason {
     /// Tool is marked as dangerous
     DangerousTool,
 
+    /// Tool is explicitly configured as sensitive
+    SensitiveTool,
+
+    /// Tool metadata declares external API usage
+    ExternalApi,
+
     /// Tool matches a pattern requiring approval
     MatchesPattern(String),
 
@@ -125,6 +142,8 @@ impl std::fmt::Display for ApprovalReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DangerousTool => write!(f, "Tool is marked as dangerous"),
+            Self::SensitiveTool => write!(f, "Tool is marked as sensitive"),
+            Self::ExternalApi => write!(f, "Tool is marked as external"),
             Self::MatchesPattern(p) => write!(f, "Tool matches pattern: {}", p),
             Self::AllToolsRequireApproval => write!(f, "All tools require approval"),
             Self::Custom(r) => write!(f, "{}", r),
@@ -138,8 +157,17 @@ pub struct ApprovalConfig {
     /// Require approval for tools marked as dangerous
     pub require_approval_for_dangerous: bool,
 
+    /// Additional tools that must always go through approval
+    pub additional_sensitive_tools: HashSet<String>,
+
     /// Require approval for all tool calls
     pub require_approval_for_all: bool,
+
+    /// Require approval for tools marked as external
+    pub require_approval_for_external: bool,
+
+    /// Auto-approve after timeout if configured (None = wait forever)
+    pub auto_approve_timeout: Option<Duration>,
 
     /// Tools that are always approved (bypass approval)
     pub always_approve_tools: HashSet<String>,
@@ -161,7 +189,10 @@ impl Default for ApprovalConfig {
     fn default() -> Self {
         Self {
             require_approval_for_dangerous: true,
+            additional_sensitive_tools: HashSet::new(),
             require_approval_for_all: false,
+            require_approval_for_external: false,
+            auto_approve_timeout: None,
             always_approve_tools: HashSet::new(),
             always_deny_tools: HashSet::new(),
             approval_patterns: Vec::new(),
@@ -178,7 +209,11 @@ impl ApprovalConfig {
     }
 
     /// Check if a tool requires approval
-    pub fn requires_approval(&self, tool_name: &str, is_dangerous: bool) -> Option<ApprovalReason> {
+    pub fn requires_approval(
+        &self,
+        tool_name: &str,
+        tool_schema: Option<&ToolSchema>,
+    ) -> Option<ApprovalReason> {
         // Check always deny first
         if self.always_deny_tools.contains(tool_name) {
             return Some(ApprovalReason::Custom("Tool is in deny list".to_string()));
@@ -189,14 +224,29 @@ impl ApprovalConfig {
             return None;
         }
 
+        // Additional sensitive tools override other checks
+        if self.additional_sensitive_tools.contains(tool_name) {
+            return Some(ApprovalReason::SensitiveTool);
+        }
+
         // Check all tools require approval
         if self.require_approval_for_all {
             return Some(ApprovalReason::AllToolsRequireApproval);
         }
 
         // Check dangerous flag
+        let is_dangerous = tool_schema.map(|s| s.dangerous).unwrap_or(false);
         if self.require_approval_for_dangerous && is_dangerous {
             return Some(ApprovalReason::DangerousTool);
+        }
+
+        // Check external metadata
+        let is_external = tool_schema
+            .and_then(|s| s.metadata.get("external"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if self.require_approval_for_external && is_external {
+            return Some(ApprovalReason::ExternalApi);
         }
 
         // Check patterns
@@ -224,8 +274,28 @@ impl ApprovalConfigBuilder {
         self
     }
 
+    pub fn additional_sensitive_tools(mut self, tools: Vec<impl Into<String>>) -> Self {
+        self.config.additional_sensitive_tools = tools.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn add_sensitive_tool(mut self, tool: impl Into<String>) -> Self {
+        self.config.additional_sensitive_tools.insert(tool.into());
+        self
+    }
+
     pub fn require_approval_for_all(mut self, value: bool) -> Self {
         self.config.require_approval_for_all = value;
+        self
+    }
+
+    pub fn require_approval_for_external(mut self, value: bool) -> Self {
+        self.config.require_approval_for_external = value;
+        self
+    }
+
+    pub fn auto_approve_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.config.auto_approve_timeout = timeout;
         self
     }
 
@@ -271,15 +341,17 @@ pub trait ApprovalHandler: Send + Sync {
     /// Get the configuration
     fn config(&self) -> &ApprovalConfig;
 
+    /// React to status updates; default no-op
+    async fn on_status_change(&self, _request_id: &str, _status: ApprovalStatus) {}
+
     /// Check if a tool requires approval and return the reason
     fn check_requires_approval(
         &self,
         tool_call: &ToolCall,
         tool_schema: Option<&ToolSchema>,
     ) -> Option<ApprovalReason> {
-        let is_dangerous = tool_schema.map(|s| s.dangerous).unwrap_or(false);
         self.config()
-            .requires_approval(&tool_call.name, is_dangerous)
+            .requires_approval(&tool_call.name, tool_schema)
     }
 }
 
@@ -591,11 +663,31 @@ mod tests {
             .require_approval_for_dangerous(true)
             .build();
 
+        let dangerous_schema = ToolSchema {
+            name: "delete_file".to_string(),
+            description: "delete".to_string(),
+            parameters: json!({}),
+            dangerous: true,
+            metadata: std::collections::HashMap::new(),
+        };
+
+        let safe_schema = ToolSchema {
+            name: "read_file".to_string(),
+            description: "read".to_string(),
+            parameters: json!({}),
+            dangerous: false,
+            metadata: std::collections::HashMap::new(),
+        };
+
         // Dangerous tool should require approval
-        assert!(config.requires_approval("delete_file", true).is_some());
+        assert!(config
+            .requires_approval(&dangerous_schema.name, Some(&dangerous_schema))
+            .is_some());
 
         // Non-dangerous tool should not
-        assert!(config.requires_approval("read_file", false).is_none());
+        assert!(config
+            .requires_approval(&safe_schema.name, Some(&safe_schema))
+            .is_none());
     }
 
     #[test]
@@ -606,10 +698,19 @@ mod tests {
             .build();
 
         // Always approved tool bypasses
-        assert!(config.requires_approval("safe_tool", true).is_none());
+        let safe_schema = ToolSchema {
+            name: "safe_tool".to_string(),
+            description: "".to_string(),
+            parameters: json!({}),
+            dangerous: true,
+            metadata: std::collections::HashMap::new(),
+        };
+        assert!(config
+            .requires_approval(&safe_schema.name, Some(&safe_schema))
+            .is_none());
 
         // Other tools still require approval
-        assert!(config.requires_approval("other_tool", false).is_some());
+        assert!(config.requires_approval("other_tool", None).is_some());
     }
 
     #[test]
@@ -619,7 +720,7 @@ mod tests {
             .build();
 
         // Always deny takes precedence
-        let reason = config.requires_approval("dangerous_tool", false);
+        let reason = config.requires_approval("dangerous_tool", None);
         assert!(reason.is_some());
     }
 
@@ -630,10 +731,42 @@ mod tests {
             .add_approval_pattern(".*_dangerous")
             .build();
 
-        assert!(config.requires_approval("delete_file", false).is_some());
-        assert!(config.requires_approval("delete_folder", false).is_some());
-        assert!(config.requires_approval("run_dangerous", false).is_some());
-        assert!(config.requires_approval("read_file", false).is_none());
+        assert!(config.requires_approval("delete_file", None).is_some());
+        assert!(config.requires_approval("delete_folder", None).is_some());
+        assert!(config.requires_approval("run_dangerous", None).is_some());
+        assert!(config.requires_approval("read_file", None).is_none());
+    }
+
+    #[test]
+    fn test_approval_config_additional_sensitive() {
+        let config = ApprovalConfig::builder()
+            .add_sensitive_tool("export_data")
+            .build();
+
+        assert!(config.requires_approval("export_data", None).is_some());
+        assert!(config.requires_approval("other", None).is_none());
+    }
+
+    #[test]
+    fn test_approval_config_external_metadata() {
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert("external".to_string(), json!(true));
+
+        let schema = ToolSchema {
+            name: "call_api".to_string(),
+            description: "External API".to_string(),
+            parameters: json!({}),
+            dangerous: false,
+            metadata,
+        };
+
+        let config = ApprovalConfig::builder()
+            .require_approval_for_external(true)
+            .build();
+
+        assert!(config
+            .requires_approval(&schema.name, Some(&schema))
+            .is_some());
     }
 
     #[tokio::test]

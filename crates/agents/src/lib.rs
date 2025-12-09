@@ -28,6 +28,7 @@
 //! - **Approvals**: Human-in-the-loop approval for dangerous operations
 
 pub mod agent_tool;
+pub mod approval;
 pub mod approvals;
 #[cfg(feature = "audit")]
 pub mod audited_executor;
@@ -54,7 +55,7 @@ pub mod trajectory;
 pub mod vector_store;
 
 pub use agent_tool::*;
-pub use approvals::*;
+pub use approval::*;
 #[cfg(feature = "audit")]
 pub use audited_executor::*;
 pub use checkpoint::*;
