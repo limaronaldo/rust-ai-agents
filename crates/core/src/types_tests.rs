@@ -28,11 +28,11 @@ mod tests {
     #[test]
     fn test_agent_id_hashing() {
         use std::collections::HashMap;
-        
+
         let mut map = HashMap::new();
         let id = AgentId::new("test");
         map.insert(id.clone(), "value");
-        
+
         assert_eq!(map.get(&id), Some(&"value"));
     }
 
@@ -41,7 +41,10 @@ mod tests {
         let config = MemoryConfig::new(1024);
         assert_eq!(config.max_size, 1024);
         assert_eq!(config.persist, false);
-        assert!(matches!(config.retention_policy, RetentionPolicy::KeepRecent(100)));
+        assert!(matches!(
+            config.retention_policy,
+            RetentionPolicy::KeepRecent(100)
+        ));
     }
 
     #[test]
@@ -171,7 +174,7 @@ mod tests {
 
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: MemoryConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.max_size, deserialized.max_size);
         assert_eq!(config.persist, deserialized.persist);
     }

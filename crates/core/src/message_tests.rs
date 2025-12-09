@@ -16,7 +16,7 @@ mod tests {
     fn test_content_structured_data() {
         let data = json!({"key": "value", "count": 42});
         let content = Content::StructuredData(data.clone());
-        
+
         if let Content::StructuredData(d) = content {
             assert_eq!(d["key"], "value");
             assert_eq!(d["count"], 42);
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn test_tool_call_creation() {
         let call = ToolCall::new("search", json!({"query": "rust"}));
-        
+
         assert_eq!(call.name, "search");
         assert_eq!(call.arguments["query"], "rust");
         assert!(!call.id.is_empty());
@@ -69,16 +69,13 @@ mod tests {
     fn test_tool_call_unique_ids() {
         let call1 = ToolCall::new("tool1", json!({}));
         let call2 = ToolCall::new("tool2", json!({}));
-        
+
         assert_ne!(call1.id, call2.id);
     }
 
     #[test]
     fn test_tool_result_success() {
-        let result = ToolResult::success(
-            "call-123".to_string(),
-            json!({"result": "ok"})
-        );
+        let result = ToolResult::success("call-123".to_string(), json!({"result": "ok"}));
 
         assert_eq!(result.call_id, "call-123");
         assert_eq!(result.success, true);
@@ -88,10 +85,7 @@ mod tests {
 
     #[test]
     fn test_tool_result_failure() {
-        let result = ToolResult::failure(
-            "call-456".to_string(),
-            "Failed to execute".to_string()
-        );
+        let result = ToolResult::failure("call-456".to_string(), "Failed to execute".to_string());
 
         assert_eq!(result.call_id, "call-456");
         assert_eq!(result.success, false);
@@ -141,11 +135,13 @@ mod tests {
         for content in contents {
             let json = serde_json::to_string(&content).unwrap();
             let deserialized: Content = serde_json::from_str(&json).unwrap();
-            
+
             // Basic check that deserialization works
             match content {
                 Content::Text(_) => assert!(matches!(deserialized, Content::Text(_))),
-                Content::StructuredData(_) => assert!(matches!(deserialized, Content::StructuredData(_))),
+                Content::StructuredData(_) => {
+                    assert!(matches!(deserialized, Content::StructuredData(_)))
+                }
                 Content::Error { .. } => assert!(matches!(deserialized, Content::Error { .. })),
                 _ => {}
             }
@@ -179,7 +175,7 @@ mod tests {
         let message = Message::new(
             AgentId::new("sender"),
             AgentId::new("receiver"),
-            Content::Text("Test message".to_string())
+            Content::Text("Test message".to_string()),
         );
 
         let json = serde_json::to_string(&message).unwrap();
@@ -196,9 +192,9 @@ mod tests {
             ToolCall::new("tool1", json!({"arg1": "value1"})),
             ToolCall::new("tool2", json!({"arg2": "value2"})),
         ];
-        
+
         let content = Content::ToolCall(calls.clone());
-        
+
         if let Content::ToolCall(tool_calls) = content {
             assert_eq!(tool_calls.len(), 2);
             assert_eq!(tool_calls[0].name, "tool1");
@@ -214,9 +210,9 @@ mod tests {
             ToolResult::success("call-1".to_string(), json!({"result": 1})),
             ToolResult::failure("call-2".to_string(), "Error".to_string()),
         ];
-        
+
         let content = Content::ToolResult(results.clone());
-        
+
         if let Content::ToolResult(tool_results) = content {
             assert_eq!(tool_results.len(), 2);
             assert_eq!(tool_results[0].success, true);

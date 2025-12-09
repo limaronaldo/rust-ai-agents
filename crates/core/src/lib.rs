@@ -16,8 +16,8 @@ pub use tool::*;
 pub use types::*;
 
 #[cfg(test)]
-mod types_tests;
-#[cfg(test)]
 mod message_tests;
 #[cfg(test)]
 mod tool_tests;
+#[cfg(test)]
+mod types_tests;

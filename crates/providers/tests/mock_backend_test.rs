@@ -7,15 +7,11 @@ use std::sync::Arc;
 
 #[tokio::test]
 async fn test_mock_backend_simple_text() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::text("Hello, world!"));
+    let backend = MockBackend::new().with_response(MockResponse::text("Hello, world!"));
 
     let messages = vec![LLMMessage::user("Hi")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert_eq!(result.content, "Hello, world!");
     assert!(result.tool_calls.is_none());
@@ -23,18 +19,14 @@ async fn test_mock_backend_simple_text() {
 
 #[tokio::test]
 async fn test_mock_backend_tool_call() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::tool_call(
-            "calculator",
-            json!({"operation": "add", "a": 2, "b": 3})
-        ));
+    let backend = MockBackend::new().with_response(MockResponse::tool_call(
+        "calculator",
+        json!({"operation": "add", "a": 2, "b": 3}),
+    ));
 
     let messages = vec![LLMMessage::user("What is 2 + 3?")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert!(result.tool_calls.is_some());
     let tool_calls = result.tool_calls.unwrap();
@@ -71,56 +63,44 @@ async fn test_mock_backend_echo_mode() {
 
     let messages = vec![LLMMessage::user("Echo this message")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert!(result.content.contains("Echo this message"));
 }
 
 #[tokio::test]
 async fn test_mock_backend_with_reasoning() {
-    let backend = MockBackend::new()
-        .with_response(
-            MockResponse::text("Answer")
-                .with_reasoning("First, I analyzed the question...")
-        );
+    let backend = MockBackend::new().with_response(
+        MockResponse::text("Answer").with_reasoning("First, I analyzed the question..."),
+    );
 
     let messages = vec![LLMMessage::user("Question")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert_eq!(result.content, "Answer");
     assert!(result.reasoning.is_some());
-    assert_eq!(result.reasoning.unwrap(), "First, I analyzed the question...");
+    assert_eq!(
+        result.reasoning.unwrap(),
+        "First, I analyzed the question..."
+    );
 }
 
 #[tokio::test]
 async fn test_mock_backend_with_confidence() {
     let backend = MockBackend::new()
-        .with_response(
-            MockResponse::text("High confidence answer")
-                .with_confidence(0.95)
-        );
+        .with_response(MockResponse::text("High confidence answer").with_confidence(0.95));
 
     let messages = vec![LLMMessage::user("Question")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert_eq!(result.confidence, 0.95);
 }
 
 #[tokio::test]
 async fn test_mock_backend_error_response() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::error("Something went wrong"));
+    let backend = MockBackend::new().with_response(MockResponse::error("Something went wrong"));
 
     let messages = vec![LLMMessage::user("Test")];
 
@@ -133,11 +113,9 @@ async fn test_mock_backend_error_response() {
 async fn test_mock_backend_latency_simulation() {
     use std::time::Instant;
 
-    let backend = MockBackend::new()
-        .with_response(
-            MockResponse::text("Delayed response")
-                .with_latency(100) // 100ms delay
-        );
+    let backend = MockBackend::new().with_response(
+        MockResponse::text("Delayed response").with_latency(100), // 100ms delay
+    );
 
     let messages = vec![LLMMessage::user("Test")];
 
@@ -176,18 +154,14 @@ async fn test_mock_backend_recorded_calls() {
 
 #[tokio::test]
 async fn test_mock_backend_multiple_tool_calls() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::tool_calls(vec![
-            ("tool1", json!({"arg1": "value1"})),
-            ("tool2", json!({"arg2": "value2"})),
-        ]));
+    let backend = MockBackend::new().with_response(MockResponse::tool_calls(vec![
+        ("tool1", json!({"arg1": "value1"})),
+        ("tool2", json!({"arg2": "value2"})),
+    ]));
 
     let messages = vec![LLMMessage::user("Use multiple tools")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert!(result.tool_calls.is_some());
     let tool_calls = result.tool_calls.unwrap();
@@ -207,18 +181,14 @@ async fn test_mock_backend_model_info() {
 
 #[tokio::test]
 async fn test_mock_backend_with_content_and_tool_call() {
-    let backend = MockBackend::new()
-        .with_response(
-            MockResponse::tool_call("search", json!({"query": "test"}))
-                .with_content("I'll search for that")
-        );
+    let backend = MockBackend::new().with_response(
+        MockResponse::tool_call("search", json!({"query": "test"}))
+            .with_content("I'll search for that"),
+    );
 
     let messages = vec![LLMMessage::user("Search for test")];
 
-    let result = backend
-        .infer(&messages, &[], 0.7)
-        .await
-        .unwrap();
+    let result = backend.infer(&messages, &[], 0.7).await.unwrap();
 
     assert_eq!(result.content, "I'll search for that");
     assert!(result.tool_calls.is_some());
@@ -239,8 +209,8 @@ async fn test_mock_response_builder() {
 
 #[tokio::test]
 async fn test_mock_backend_with_tools() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::tool_call("search", json!({"q": "test"})));
+    let backend =
+        MockBackend::new().with_response(MockResponse::tool_call("search", json!({"q": "test"})));
 
     let tools = vec![
         ToolSchema::new("search", "Search for information"),
@@ -256,8 +226,7 @@ async fn test_mock_backend_with_tools() {
 
 #[tokio::test]
 async fn test_mock_backend_token_usage() {
-    let backend = MockBackend::new()
-        .with_response(MockResponse::text("Response"));
+    let backend = MockBackend::new().with_response(MockResponse::text("Response"));
 
     let messages = vec![LLMMessage::user("Test")];
 
@@ -271,4 +240,3 @@ async fn test_mock_backend_token_usage() {
         result.token_usage.prompt_tokens + result.token_usage.completion_tokens
     );
 }
-

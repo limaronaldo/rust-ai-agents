@@ -9,7 +9,7 @@ mod tests {
     #[test]
     fn test_tool_schema_creation() {
         let schema = ToolSchema::new("calculator", "Performs calculations");
-        
+
         assert_eq!(schema.name, "calculator");
         assert_eq!(schema.description, "Performs calculations");
         assert_eq!(schema.dangerous, false);
@@ -27,16 +27,14 @@ mod tests {
             "required": ["a", "b"]
         });
 
-        let schema = ToolSchema::new("add", "Add two numbers")
-            .with_parameters(params.clone());
+        let schema = ToolSchema::new("add", "Add two numbers").with_parameters(params.clone());
 
         assert_eq!(schema.parameters, params);
     }
 
     #[test]
     fn test_tool_schema_dangerous_flag() {
-        let schema = ToolSchema::new("delete_file", "Deletes a file")
-            .with_dangerous(true);
+        let schema = ToolSchema::new("delete_file", "Deletes a file").with_dangerous(true);
 
         assert_eq!(schema.dangerous, true);
     }
@@ -116,7 +114,7 @@ mod tests {
     #[test]
     fn test_tool_schema_default_parameters() {
         let schema = ToolSchema::new("simple", "Simple tool");
-        
+
         // Should have default JSON Schema object structure
         assert!(schema.parameters.is_object());
         assert!(schema.parameters["type"] == "object");
@@ -135,7 +133,7 @@ mod tests {
     #[test]
     fn test_multiple_metadata_additions() {
         let mut schema = ToolSchema::new("tool", "description");
-        
+
         schema = schema
             .add_metadata("meta1", json!("value1"))
             .add_metadata("meta2", json!("value2"))
@@ -146,24 +144,22 @@ mod tests {
 
     #[test]
     fn test_execution_context_get() {
-        let context = ExecutionContext::new(AgentId::new("agent"))
-            .with_data("key", json!("value"));
+        let context = ExecutionContext::new(AgentId::new("agent")).with_data("key", json!("value"));
 
         let value = context.get("key");
         assert!(value.is_some());
         assert_eq!(value.unwrap(), &json!("value"));
-        
+
         let missing = context.get("nonexistent");
         assert!(missing.is_none());
     }
 
     #[test]
     fn test_tool_schema_clone() {
-        let schema1 = ToolSchema::new("tool", "description")
-            .with_dangerous(true);
-        
+        let schema1 = ToolSchema::new("tool", "description").with_dangerous(true);
+
         let schema2 = schema1.clone();
-        
+
         assert_eq!(schema1.name, schema2.name);
         assert_eq!(schema1.dangerous, schema2.dangerous);
     }

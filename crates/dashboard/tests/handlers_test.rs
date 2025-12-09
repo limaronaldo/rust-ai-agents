@@ -1,7 +1,7 @@
 //! Integration tests for dashboard state and types
 
-use rust_ai_agents_dashboard::{AgentStatus, Session, SessionStatus, TraceEntry, TraceEntryType};
 use chrono::Utc;
+use rust_ai_agents_dashboard::{AgentStatus, Session, SessionStatus, TraceEntry, TraceEntryType};
 use serde_json::json;
 
 #[test]
@@ -38,7 +38,10 @@ fn test_agent_status_serialization() {
 
     assert_eq!(agent_status.id, deserialized.id);
     assert_eq!(agent_status.name, deserialized.name);
-    assert_eq!(agent_status.messages_processed, deserialized.messages_processed);
+    assert_eq!(
+        agent_status.messages_processed,
+        deserialized.messages_processed
+    );
 }
 
 #[test]
@@ -106,7 +109,10 @@ fn test_trace_entry_agent_thought() {
 
     assert_eq!(trace.id, "trace-1");
     assert_eq!(trace.session_id, "session-1");
-    assert!(matches!(trace.entry_type, TraceEntryType::AgentThought { .. }));
+    assert!(matches!(
+        trace.entry_type,
+        TraceEntryType::AgentThought { .. }
+    ));
 }
 
 #[test]
@@ -125,7 +131,13 @@ fn test_trace_entry_llm_request() {
         metadata: Some(json!({"provider": "openai"})),
     };
 
-    if let TraceEntryType::LlmRequest { model, prompt_tokens, completion_tokens, cost } = trace.entry_type {
+    if let TraceEntryType::LlmRequest {
+        model,
+        prompt_tokens,
+        completion_tokens,
+        cost,
+    } = trace.entry_type
+    {
         assert_eq!(model, "gpt-4");
         assert_eq!(prompt_tokens, 100);
         assert_eq!(completion_tokens, 50);
@@ -149,7 +161,11 @@ fn test_trace_entry_tool_call() {
         metadata: None,
     };
 
-    if let TraceEntryType::ToolCall { tool_name, arguments } = trace.entry_type {
+    if let TraceEntryType::ToolCall {
+        tool_name,
+        arguments,
+    } = trace.entry_type
+    {
         assert_eq!(tool_name, "calculator");
         assert_eq!(arguments["operation"], "add");
         assert_eq!(arguments["a"], 2);
@@ -173,7 +189,12 @@ fn test_trace_entry_tool_result() {
         metadata: None,
     };
 
-    if let TraceEntryType::ToolResult { tool_name, result, success } = trace.entry_type {
+    if let TraceEntryType::ToolResult {
+        tool_name,
+        result,
+        success,
+    } = trace.entry_type
+    {
         assert_eq!(tool_name, "calculator");
         assert_eq!(result["sum"], 5);
         assert_eq!(success, true);
@@ -196,7 +217,11 @@ fn test_trace_entry_error() {
         metadata: None,
     };
 
-    if let TraceEntryType::Error { message, error_type } = trace.entry_type {
+    if let TraceEntryType::Error {
+        message,
+        error_type,
+    } = trace.entry_type
+    {
         assert_eq!(message, "Failed to execute tool");
         assert_eq!(error_type, "ToolExecutionError");
     } else {
@@ -223,6 +248,3 @@ fn test_trace_entry_serialization() {
     assert_eq!(trace.id, deserialized.id);
     assert_eq!(trace.session_id, deserialized.session_id);
 }
-
-
-
