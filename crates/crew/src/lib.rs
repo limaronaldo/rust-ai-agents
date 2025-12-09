@@ -20,6 +20,7 @@
 //! - **Handoff**: Agent-to-agent handoffs with context passing and return support
 //! - **Streaming**: Unified streaming events across graphs, handoffs, and workflows
 
+pub mod cancellation;
 pub mod coordination;
 pub mod crew;
 pub mod graph;
@@ -34,6 +35,7 @@ pub mod time_travel;
 pub mod voting;
 pub mod workflow;
 
+pub use cancellation::*;
 pub use coordination::*;
 pub use crew::*;
 pub use graph::*;
